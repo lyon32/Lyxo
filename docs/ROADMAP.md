@@ -34,25 +34,19 @@
 - [ ] **1.2** Installer l'outillage Claude Code : Context7, Resend MCP,
       Maestro MCP + CLI, GitHub MCP, Supabase MCP, Expo MCP, CodeRabbit
       (GitHub App + .coderabbit.yaml), EAS CLI.
-- [ ] **1.3** (PARTIEL) Backend : squelette Node/Express TypeScript, healthcheck,
-      Sentry (app + backend) FAIT. Render déployé (staging) **BLOQUÉ** :
-      le repo lyon32/Lyxo est privé, l'app GitHub de Render n'y a pas
-      accès — action manuelle requise (dashboard.render.com → connecter
-      GitHub → autoriser le repo), puis relancer la création du service
-      (name lyxo-api, runtime node, build `cd backend && npm ci && npm
-      run build`, start `cd backend && npm start`, region frankfurt).
-      Monorepo : backend/ dans lyon32/Lyxo (décision session, déviation
-      assumée de la reco 2-repos). Sentry wired (lib/sentry.ts app +
-      backend, no-op tant que SENTRY_DSN/EXPO_PUBLIC_SENTRY_DSN absents
-      — pas de projet Sentry créé).
-- [ ] **1.4** (PARTIEL) `supabase init` FAIT (supabase/config.toml). `supabase
-      link`/CLI **BLOQUÉ** : nécessite `supabase login` ou
-      SUPABASE_ACCESS_TOKEN (interactif, action manuelle utilisateur) —
-      contourné pour l'instant via le MCP Supabase déjà authentifié
-      (apply_migration/execute_sql) pour les migrations réelles.
-      Script `supabase:generate-types` ajouté (backend/package.json,
-      nécessitera le lien CLI pour re-générer plus tard — types actuels
-      générés via le MCP et commités en dur, backend/src/types/supabase.ts).
+- [x] **1.3** Backend : squelette Node/Express TypeScript, healthcheck,
+      Sentry (app + backend). Monorepo : backend/ dans lyon32/Lyxo
+      (décision session, déviation assumée de la reco 2-repos). Sentry
+      wired (lib/sentry.ts app + backend, no-op tant que SENTRY_DSN/
+      EXPO_PUBLIC_SENTRY_DSN absents — pas de projet Sentry créé). Render
+      déployé (staging) : service `lyxo-api` (Frankfurt) live sur
+      https://lyxo-api.onrender.com, healthcheck `/v1/health` vérifié en
+      prod (200 `{"status":"ok"}`).
+- [x] **1.4** Supabase CLI dans le repo (`supabase init`,
+      supabase/config.toml), lien projet fait (`supabase link
+      --project-ref gyslysnysrswzefmvpxw`), script
+      `supabase:generate-types` (backend/package.json) exécuté avec
+      succès via la CLI liée — backend/src/types/supabase.ts régénéré.
 - [x] **1.5** Migration + RLS : `profiles` (tous les champs DATA_MODEL
       §2.1, y compris `goal`/`preferred_split`/`weekly_goal`) + `devices`.
       Projet Supabase canonique : **lyxo** (gyslysnysrswzefmvpxw,
@@ -66,7 +60,6 @@
       GRANT/REVOKE colonne par colonne). Advisor sécurité : 0 warning
       après durcissement (search_path + RPC publique sur les fonctions
       trigger).
-      Trigger de création de profil à l'inscription.
 - [ ] **1.5bis** Écrans langue (1bis) + Welcome/offline fusionné (1ter,
       photo hero réelle — PHOTO HERO EXCEPTION, UI prompt) + onboarding
       PRÉ-auth (Objectif 3 cards, Split PPL/UL/FB — UI prompt écran 2) :

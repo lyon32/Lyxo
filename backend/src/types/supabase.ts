@@ -1,6 +1,3 @@
-// Généré depuis le schéma Supabase (projet lyxo, gyslysnysrswzefmvpxw) —
-// ne pas éditer à la main. Régénérer avec `npm run supabase:generate-types`
-// après chaque migration (CONVENTIONS.md §19.9).
 export type Json =
   | string
   | number
