@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "lyxo-app",
-    "slug": "lyxo-app",
+    "slug": "lyxo",
     "version": "1.0.0",
     "scheme": "lyxo",
     "orientation": "portrait",
@@ -29,6 +29,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "67a75511-82c4-4905-996f-4f32c79aba82"
+      }
+    },
+    "owner": "lyon32"
   }
 }

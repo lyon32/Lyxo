@@ -20,7 +20,7 @@
 | `EXPO_PUBLIC_SENTRY_DSN` | DSN Sentry côté app |
 | `EXPO_PUBLIC_POSTHOG_API_KEY` | Clé PostHog (branché au Bloc G, pas avant) |
 | `EXPO_PUBLIC_POSTHOG_HOST` | Host EU PostHog (conformité RGPD, §19) |
-| `EAS_PROJECT_ID` | ID du projet EAS (déjà créé — `5c9066f1-...`) |
+| `EAS_PROJECT_ID` | ID du projet EAS (déjà créé — `67a75511-82c4-4905-996f-4f32c79aba82`, @lyon32/lyxo — corrigé tâche 1.6, l'ancien placeholder `5c9066f1-...` était erroné) |
 
 > Préfixe `EXPO_PUBLIC_` obligatoire pour toute variable lue côté client
 > (Expo l'inline au build) — RIEN de secret ne doit porter ce préfixe.
