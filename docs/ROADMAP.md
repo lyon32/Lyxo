@@ -34,8 +34,13 @@
 - [ ] **1.2** Installer l'outillage Claude Code : Context7, Resend MCP,
       Maestro MCP + CLI, GitHub MCP, Supabase MCP, Expo MCP, CodeRabbit
       (GitHub App + .coderabbit.yaml), EAS CLI.
-- [ ] **1.3** Backend : squelette Node/Express TypeScript, healthcheck,
-      Sentry (app + backend), Render déployé (staging).
+- [x] **1.3** Backend : squelette Node/Express TypeScript, healthcheck,
+      Sentry (app + backend), Render déployé (staging). Monorepo :
+      backend/ dans lyon32/Lyxo (décision session, déviation assumée de
+      la reco 2-repos). Sentry wired (lib/sentry.ts app + backend,
+      no-op tant que SENTRY_DSN/EXPO_PUBLIC_SENTRY_DSN absents — pas de
+      projet Sentry créé). Projet Supabase LYXO créé (gyslysnysrswzefmvpxw,
+      eu-west-1, org lyon) — voir 1.4 pour CLI/migrations/RLS.
 - [ ] **1.4** Supabase CLI dans le repo, `supabase init`, lien projet,
       script `supabase:generate-types`.
 - [ ] **1.5** Migration + RLS : `profiles` (tous les champs DATA_MODEL
