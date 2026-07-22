@@ -34,7 +34,7 @@
 | `DIRECT_URL` | Connexion directe Postgres (migrations Prisma) |
 | `SUPABASE_URL` | URL du projet Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clé service (bypass RLS) — **SECRET, backend only** |
-| `SUPABASE_JWT_SECRET` | Vérification des JWT côté middleware auth |
+| ~~`SUPABASE_JWT_SECRET`~~ | **Correction (tâche 1.6)** : ce projet Supabase (créé après le passage aux clés JWT asymétriques) n'a PAS de secret partagé legacy — vérifié via `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` (ES256), voir `backend/src/lib/auth.ts`. Variable non nécessaire ici. |
 | `PAWAPAY_API_TOKEN_SANDBOX` | Token API PawaPay sandbox (dev/staging, Phase 3) |
 | `PAWAPAY_API_TOKEN_PROD` | Token API PawaPay production (Phase 3, jamais en local) |
 | `PAWAPAY_CALLBACK_SIGNING_KEY` | Vérification signature RFC-9421 des callbacks |

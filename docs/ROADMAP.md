@@ -84,7 +84,7 @@
   Ko chacun) ne sont pas encore optimisés/recadrés (aucun outil image
   dispo en session) — à revoir avant la mesure DoD "< 30 Mo à
   l'installation" (PROJECT_BRIEF §3).
-- [ ]  **1.6** Auth : email + Google (Supabase Auth) — **Android V1 :
+- [x] **1.6** Auth : email + Google (Supabase Auth) — **Android V1 :
   PAS d'Apple Sign-In** (Apple réservé au build iOS, phase
   ultérieure post-Android — PROJECT_BRIEF non-goal 10, décision
   fiche 9 comité, UI prompt écran 3). Écrans signup/login (UI prompt
@@ -93,6 +93,43 @@
   pré-auth (AsyncStorage) poussés via PATCH post-login (API_SPEC
   §4.2) — pas de sélecteur langue ici (déjà fait sur l'écran 1bis,
   avant ce bloc) ; unité kg/lbs regroupée à la tâche 1.8 (post-auth).
+
+  Fait : backend requireAuth (JWKS ES256, lib/auth.ts — PAS de secret
+  legacy, voir correction ENV_SETUP §1.2), routes GET/PATCH
+  /v1/profiles/me + GET /v1/profiles/check-username (rate-limited,
+  zod, allowlist stricte 403 hors champs autorisés), lib/supabase-admin
+  (service_role, lazy — ne crashe plus le boot si absent). App :
+  lib/supabase.ts (AsyncStorage + PKCE), lib/auth-store.ts (zustand),
+  push-onboarding-choices.ts (PATCH post-login idempotent), écrans
+  app/auth/(index=signup|login|forgot-password|reset-password).tsx,
+  gate racine réel (needs-onboarding/needs-auth/ready).
+
+  **Déviation documentée** : accès DB backend via supabase-js/
+  service_role au lieu de Prisma (décision session — évite un mot de
+  passe Postgres à récupérer maintenant ; Prisma reste possible plus
+  tard pour des besoins plus complexes).
+
+  ⚠️ **Config manuelle Supabase Dashboard requise avant que l'auth
+  fonctionne réellement** (aucune n'est faisable depuis une session
+  headless) :
+  1. `SUPABASE_SERVICE_ROLE_KEY` (Project Settings > API Keys) → env
+     Render (`lyxo-api`) + `.env` local.
+  2. Authentication > Providers > Google : activer + Client ID/Secret
+     (Google Cloud Console) + redirect URI Supabase.
+  3. Authentication > URL Configuration : autoriser `lyxo://auth/
+     callback` et `lyxo://auth/reset-password`.
+  4. Authentication > Providers > Email : désactiver "Confirm email"
+     (PRD 3.1, confirmation désactivée en V1) — sinon signUp ne crée
+     pas de session immédiate (géré côté code, `needsEmailConfirmation`,
+     mais l'UX voulue suppose ce réglage OFF).
+  5. Authentication > SMTP : brancher Resend (domaine lyxo.app à
+     vérifier, ou domaine sandbox Resend en attendant) pour l'email de
+     reset password.
+
+  Non testé en conditions réelles (pas d'émulateur/device dans cette
+  session) : le flow OAuth Google et le deep link de reset password —
+  correct sur le papier (pattern officiel Expo/Supabase PKCE), à
+  vérifier sur device une fois la config ci-dessus faite.
 - [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo

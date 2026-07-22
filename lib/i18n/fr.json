@@ -47,7 +47,53 @@
     }
   },
   "auth": {
-    "placeholder_title": "Créer un compte",
-    "placeholder_subtitle": "Arrive à la tâche ROADMAP 1.6."
+    "signup": {
+      "recap_subtitle": "Crée ton compte pour le sauvegarder",
+      "google": "Continuer avec Google",
+      "divider": "ou",
+      "username_label": "Pseudo",
+      "username_taken": "Ce pseudo est déjà pris.",
+      "username_suggestions_intro": "Essaie plutôt :",
+      "email_label": "Email",
+      "password_label": "Mot de passe",
+      "cta": "Continuer",
+      "legal_prefix": "En continuant tu acceptes les ",
+      "legal_terms": "Conditions",
+      "legal_and": " et la ",
+      "legal_privacy": "Politique de confidentialité",
+      "switch_to_login": "Déjà un compte ? Se connecter"
+    },
+    "login": {
+      "title": "Content de te revoir",
+      "subtitle": "Tes barres t'attendent.",
+      "google": "Continuer avec Google",
+      "divider": "ou",
+      "email_label": "Email",
+      "password_label": "Mot de passe",
+      "forgot_password": "Mot de passe oublié ?",
+      "cta": "Se connecter",
+      "switch_to_signup": "Pas encore de compte ? Créer mon compte"
+    },
+    "forgot": {
+      "title": "Mot de passe oublié",
+      "email_label": "Email",
+      "cta": "Envoyer le lien",
+      "success": "Email envoyé. Vérifie ta boîte de réception."
+    },
+    "reset": {
+      "title": "Nouveau mot de passe",
+      "password_label": "Nouveau mot de passe",
+      "helper": "8 caractères minimum",
+      "cta": "Enregistrer",
+      "expired": "Lien expiré",
+      "resend": "Renvoyer l'email"
+    },
+    "errors": {
+      "invalid_credentials": "Email ou mot de passe incorrect.",
+      "user_already_exists": "Un compte existe déjà avec cet email. Se connecter ?",
+      "weak_password": "8 caractères minimum.",
+      "offline": "Connexion requise pour créer ton compte. Tes choix sont gardés — réessaie dès que tu as du signal.",
+      "generic": "Une erreur est survenue. Réessaie."
+    }
   }
 }

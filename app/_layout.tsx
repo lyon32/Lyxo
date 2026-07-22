@@ -8,12 +8,17 @@ import i18next from 'i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { useAuthStore } from '../lib/auth-store';
 import { getStoredLanguage } from '../lib/onboarding-storage';
 import { initSentry } from '../lib/sentry';
 
 initSentry();
 
 export default function RootLayout() {
+  useEffect(() => {
+    useAuthStore.getState().bootstrap();
+  }, []);
+
   useEffect(() => {
     getStoredLanguage().then((language) => {
       if (language && language !== i18next.language) {

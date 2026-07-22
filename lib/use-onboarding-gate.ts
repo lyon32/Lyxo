@@ -1,28 +1,31 @@
 import { useEffect, useState } from 'react';
 
+import { useAuthStore } from './auth-store';
 import { getStoredLanguage } from './onboarding-storage';
 
-export type OnboardingGateStatus = 'checking' | 'needs-onboarding' | 'ready';
+export type OnboardingGateStatus = 'checking' | 'needs-onboarding' | 'needs-auth' | 'ready';
 
-// Tant qu'aucune session réelle n'existe (auth arrive à la tâche 1.6),
-// le seul critère de "premier lancement" est le choix de langue jamais
-// fait — le vrai gate d'authentification (session Supabase) remplacera
-// ce chèque une fois 1.6 livré.
+// Gate racine réel (remplace la version temporaire de la tâche 1.5bis) :
+// langue jamais choisie → onboarding pré-auth ; langue choisie mais pas
+// de session Supabase → auth ; sinon → tabs.
 export function useOnboardingGate(): OnboardingGateStatus {
-  const [status, setStatus] = useState<OnboardingGateStatus>('checking');
+  const authStatus = useAuthStore((s) => s.status);
+  const [languageStatus, setLanguageStatus] = useState<'checking' | 'missing' | 'present'>(
+    'checking',
+  );
 
   useEffect(() => {
     let cancelled = false;
-
     getStoredLanguage().then((language) => {
-      if (cancelled) return;
-      setStatus(language ? 'ready' : 'needs-onboarding');
+      if (!cancelled) setLanguageStatus(language ? 'present' : 'missing');
     });
-
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return status;
+  if (languageStatus === 'checking' || authStatus === 'loading') return 'checking';
+  if (languageStatus === 'missing') return 'needs-onboarding';
+  if (authStatus === 'signed-out') return 'needs-auth';
+  return 'ready';
 }

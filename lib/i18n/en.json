@@ -47,7 +47,53 @@
     }
   },
   "auth": {
-    "placeholder_title": "Create an account",
-    "placeholder_subtitle": "Lands in ROADMAP task 1.6."
+    "signup": {
+      "recap_subtitle": "Create your account to save it",
+      "google": "Continue with Google",
+      "divider": "or",
+      "username_label": "Username",
+      "username_taken": "This username is already taken.",
+      "username_suggestions_intro": "Try instead:",
+      "email_label": "Email",
+      "password_label": "Password",
+      "cta": "Continue",
+      "legal_prefix": "By continuing you agree to the ",
+      "legal_terms": "Terms",
+      "legal_and": " and ",
+      "legal_privacy": "Privacy Policy",
+      "switch_to_login": "Already have an account? Log in"
+    },
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Your bars are waiting.",
+      "google": "Continue with Google",
+      "divider": "or",
+      "email_label": "Email",
+      "password_label": "Password",
+      "forgot_password": "Forgot password?",
+      "cta": "Log in",
+      "switch_to_signup": "Don't have an account? Create one"
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "email_label": "Email",
+      "cta": "Send link",
+      "success": "Email sent. Check your inbox."
+    },
+    "reset": {
+      "title": "New password",
+      "password_label": "New password",
+      "helper": "8 characters minimum",
+      "cta": "Save",
+      "expired": "Link expired",
+      "resend": "Resend email"
+    },
+    "errors": {
+      "invalid_credentials": "Incorrect email or password.",
+      "user_already_exists": "An account already exists with this email. Log in?",
+      "weak_password": "8 characters minimum.",
+      "offline": "Connection required to create your account. Your choices are saved — try again once you have signal.",
+      "generic": "Something went wrong. Try again."
+    }
   }
 }

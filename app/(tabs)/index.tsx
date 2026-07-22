@@ -12,6 +12,8 @@ export default function HomeScreen() {
   useEffect(() => {
     if (gateStatus === 'needs-onboarding') {
       router.replace('/onboarding/language');
+    } else if (gateStatus === 'needs-auth') {
+      router.replace('/auth');
     }
   }, [gateStatus]);
 

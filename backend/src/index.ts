@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 // initSentry() doit s'exécuter avant que express/cors ne soient require()
 // (compilation commonjs = ordre source préservé), pour instrumenter dès
 // le premier require.
@@ -13,6 +15,7 @@ import { logger } from './lib/logger';
 import { errorHandler } from './middleware/error-handler';
 import { AppError } from './lib/errors';
 import { healthRouter } from './routes/health';
+import { profilesRouter } from './routes/profiles';
 
 const app = express();
 
@@ -21,6 +24,7 @@ app.use(express.json());
 app.use(pinoHttp({ logger }));
 
 app.use(healthRouter);
+app.use(profilesRouter);
 
 app.use((req, _res, next) => {
   next(new AppError('RESOURCE_NOT_FOUND', `No route for ${req.method} ${req.path}`));
