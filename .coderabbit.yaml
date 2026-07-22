@@ -1,0 +1,18 @@
+reviews:
+  profile: assertive
+  instructions:
+    - Vérifier que toute string UI passe par i18next (§CONVENTIONS 5.6)
+    - Signaler tout DELETE physique sur une table SYNC (doit être deleted_at, §18.3)
+    - Signaler tout prix/montant hardcodé hors config/limits.ts
+    - Vérifier que les routes API renvoient le format d'erreur standard
+      (API_SPEC §2) — objet {error:{code,message,details}}, jamais une
+      autre forme
+    - Signaler toute colonne dérivée stockée physiquement sans
+      justification écrite (piège is_premium, §20.1/CONVENTIONS §6)
+    - Bloquer toute chaîne interdite dans les fichiers d'écrans Afrique
+      (paywall/fin de trial) : "rends-toi", "lyxo.app", "payer",
+      "activer", "abonner", "PawaPay", "MoMo", "Orange Money" —
+      conformité écrite Google (BILLING_FLOW §4.1/§8)
+    - Vérifier qu'aucune donnée sensible (montant, user_id cible,
+      billing_region) n'est acceptée depuis le body client sans
+      recalcul/vérification serveur (SECURITY_NOTES §2.2)

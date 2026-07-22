@@ -13,5 +13,41 @@
   },
   "discover": {
     "placeholder": "Coming soon"
+  },
+  "onboarding": {
+    "language": {
+      "french": "Français",
+      "english": "English",
+      "continue": "Continue"
+    },
+    "welcome": {
+      "skip": "Skip",
+      "headline": "Lift more. Together.",
+      "subtitle": "Your workouts saved even offline. You'll never lose a session.",
+      "cta": "Get started",
+      "already_account": "Already have an account? Log in"
+    },
+    "step": "Step {{current}}/3",
+    "goal": {
+      "title": "What's your goal?",
+      "force": "Strength",
+      "masse": "Mass",
+      "regularite": "Consistency",
+      "cta": "Continue"
+    },
+    "split": {
+      "title": "Which split do you want to follow?",
+      "ppl": "Push / Pull / Legs",
+      "ppl_days": "6 days/week",
+      "upper_lower": "Upper / Lower",
+      "upper_lower_days": "4 days/week",
+      "full_body": "Full Body",
+      "full_body_days": "3 days/week",
+      "cta": "Continue"
+    }
+  },
+  "auth": {
+    "placeholder_title": "Create an account",
+    "placeholder_subtitle": "Lands in ROADMAP task 1.6."
   }
 }

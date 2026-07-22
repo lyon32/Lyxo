@@ -13,5 +13,41 @@
   },
   "discover": {
     "placeholder": "Bientôt disponible"
+  },
+  "onboarding": {
+    "language": {
+      "french": "Français",
+      "english": "English",
+      "continue": "Continuer"
+    },
+    "welcome": {
+      "skip": "Passer",
+      "headline": "Soulève plus. Ensemble.",
+      "subtitle": "Tes séances enregistrées même sans réseau. Tu ne perdras jamais une séance.",
+      "cta": "Commencer",
+      "already_account": "Déjà un compte ? Se connecter"
+    },
+    "step": "Étape {{current}}/3",
+    "goal": {
+      "title": "Quel est ton objectif ?",
+      "force": "Force",
+      "masse": "Masse",
+      "regularite": "Régularité",
+      "cta": "Continuer"
+    },
+    "split": {
+      "title": "Quel split veux-tu suivre ?",
+      "ppl": "Push / Pull / Legs",
+      "ppl_days": "6 jours/semaine",
+      "upper_lower": "Upper / Lower",
+      "upper_lower_days": "4 jours/semaine",
+      "full_body": "Full Body",
+      "full_body_days": "3 jours/semaine",
+      "cta": "Continuer"
+    }
+  },
+  "auth": {
+    "placeholder_title": "Créer un compte",
+    "placeholder_subtitle": "Arrive à la tâche ROADMAP 1.6."
   }
 }
