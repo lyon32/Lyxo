@@ -41,3 +41,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# skills auto-installés par le harness (non liés au projet)
+.claude/skills/

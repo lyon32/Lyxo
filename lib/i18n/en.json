@@ -1,1 +1,17 @@
-{}
+{
+  "nav": {
+    "home": "Home",
+    "log": "Log",
+    "progress": "Progress",
+    "discover": "Discover",
+    "profile": "Profile"
+  },
+  "home": {
+    "test_title": "Braise palette — test screen",
+    "test_subtitle": "bg · card · border · muted · fg · ember · steel",
+    "cta": "Start workout"
+  },
+  "discover": {
+    "placeholder": "Coming soon"
+  }
+}

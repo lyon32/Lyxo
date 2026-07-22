@@ -1,17 +1,24 @@
 {
   "name": "lyxo-app",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
     "expo": "~57.0.7",
+    "expo-constants": "~57.0.6",
+    "expo-linking": "~57.0.3",
+    "expo-router": "~57.0.7",
     "expo-status-bar": "~57.0.1",
     "i18next": "^26.3.6",
+    "lucide-react-native": "^1.25.0",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-i18next": "^17.0.10",
     "react-native": "0.86.0",
+    "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "^4.5.2",
-    "react-native-safe-area-context": "^5.8.0"
+    "react-native-safe-area-context": "^5.8.0",
+    "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

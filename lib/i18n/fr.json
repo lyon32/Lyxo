@@ -1,1 +1,17 @@
-{}
+{
+  "nav": {
+    "home": "Accueil",
+    "log": "Log",
+    "progress": "Progrès",
+    "discover": "Discover",
+    "profile": "Profil"
+  },
+  "home": {
+    "test_title": "Palette Braise — écran de test",
+    "test_subtitle": "bg · card · border · muted · fg · ember · steel",
+    "cta": "Commencer la séance"
+  },
+  "discover": {
+    "placeholder": "Bientôt disponible"
+  }
+}

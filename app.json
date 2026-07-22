@@ -3,6 +3,7 @@
     "name": "lyxo-app",
     "slug": "lyxo-app",
     "version": "1.0.0",
+    "scheme": "lyxo",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }

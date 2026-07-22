@@ -24,9 +24,13 @@
 
 ## PHASE 1 — FONDATIONS (Bloc A, IMPLEMENTATION_PLAN)
 
-- [ ] **1.1** Setup monorepo/2-repos, Expo TypeScript strict, ESLint/Prettier,
+- [x] **1.1** Setup monorepo/2-repos, Expo TypeScript strict, ESLint/Prettier,
       i18next câblé (fichiers fr.json/en.json vides), NativeWind v4 recette
       exacte (tailwind 3.4.17, babel, metro, types) — écran de test Braise.
+      + expo-router (layout (tabs) 5 onglets), lucide-react-native, CI
+      GitHub Actions (lint+typecheck sur PR). Repo app poussé sur
+      github.com/lyon32/Lyxo. Backend (Node/Express) reste à faire —
+      voir 1.3.
 - [ ] **1.2** Installer l'outillage Claude Code : Context7, Resend MCP,
       Maestro MCP + CLI, GitHub MCP, Supabase MCP, Expo MCP, CodeRabbit
       (GitHub App + .coderabbit.yaml), EAS CLI.
