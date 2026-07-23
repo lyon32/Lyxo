@@ -8,13 +8,15 @@ import i18next from 'i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import * as Sentry from '@sentry/react-native';
+
 import { useAuthStore } from '../lib/auth-store';
 import { getStoredLanguage } from '../lib/onboarding-storage';
 import { initSentry } from '../lib/sentry';
 
 initSentry();
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   useEffect(() => {
     useAuthStore.getState().bootstrap();
   }, []);
@@ -41,4 +43,4 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
-}
+});

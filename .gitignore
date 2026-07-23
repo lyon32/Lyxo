@@ -44,3 +44,5 @@ yarn-error.*
 
 # skills auto-installés par le harness (non liés au projet)
 .claude/skills/
+
+.env.local

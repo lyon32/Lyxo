@@ -6,5 +6,14 @@ export function initSentry(): void {
   const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
   if (!dsn) return;
 
-  Sentry.init({ dsn, environment: __DEV__ ? 'development' : 'production' });
+  Sentry.init({
+    dsn,
+    environment: __DEV__ ? 'development' : 'production',
+    // Pas d'IP/cookies auto (sendDefaultPii) — posture RGPD du projet
+    // (SECURITY_NOTES §3ter, redaction PII déjà appliquée côté pino).
+    sendDefaultPii: false,
+    // Décision session : pas de Sentry Logs (canal de logs distinct de
+    // pino côté backend), pas de Session Replay, pas de Feedback Widget.
+    enableLogs: false,
+  });
 }
