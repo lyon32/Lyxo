@@ -135,11 +135,12 @@
   polyfill WebCrypto (lib/webcrypto-polyfill.ts, expo-crypto +
   react-native-get-random-values) — Hermes n'a pas crypto.subtle,
   supabase-js retombait sur PKCE "plain" au lieu de "S256" sans ça.
-  ⚠️ **"Confirm email" semble encore actif** malgré le réglage —
-  un signup de test n'a renvoyé aucune session (email_confirmed_at
-  null en base) ; à revérifier dans Supabase Dashboard (bien cliquer
-  Save). OAuth Google et deep link reset password : pattern correct
-  sur le papier, toujours pas testés de bout en bout sur device (le
+  **"Confirm email" corrigé et reconfirmé** (2e test signup : session
+  immédiate, email_confirmed_at rempli automatiquement, profil créé,
+  GET /v1/profiles/me OK). Les 5 réglages manuels Supabase Dashboard
+  sont maintenant tous vérifiés bons. OAuth Google et deep link reset
+  password : pattern correct sur le papier, toujours pas testés de
+  bout en bout sur device (le
   test JWT ci-dessus valide le backend, pas le flow OAuth complet).
 - [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
