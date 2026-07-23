@@ -8,5 +8,8 @@ export function initSentry(): void {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV ?? 'development',
+    // Pas d'IP/cookies/corps de requête auto-envoyés — posture RGPD du
+    // projet (SECURITY_NOTES §3ter), le logger pino redacte déjà PII.
+    sendDefaultPii: false,
   });
 }
