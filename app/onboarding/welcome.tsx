@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
         <Pressable onPress={goNext} className="w-full items-center rounded-2xl bg-ember px-6 py-4">
           <Text className="text-fg">{t('onboarding.welcome.cta')}</Text>
         </Pressable>
-        <Pressable onPress={() => router.push('/auth')}>
+        <Pressable onPress={() => router.push('/auth/login')}>
           <Text className="text-center text-muted">{t('onboarding.welcome.already_account')}</Text>
         </Pressable>
       </View>
