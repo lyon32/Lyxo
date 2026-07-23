@@ -8,6 +8,7 @@ import { AuthTextInput } from '../../components/AuthTextInput';
 import { SocialButton } from '../../components/SocialButton';
 import { mapAuthError } from '../../lib/auth-errors';
 import { useAuthStore } from '../../lib/auth-store';
+import { goBackSafely } from '../../lib/safe-back';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -49,7 +50,7 @@ export default function LoginScreen() {
 
   return (
     <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-6 px-6 py-16">
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={() => goBackSafely('/auth')}>
         <ChevronLeft color="#F5F1EC" size={28} />
       </Pressable>
 

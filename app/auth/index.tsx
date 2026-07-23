@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 
 import { AuthTextInput } from '../../components/AuthTextInput';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -9,6 +10,7 @@ import { SocialButton } from '../../components/SocialButton';
 import { mapAuthError } from '../../lib/auth-errors';
 import { useAuthStore } from '../../lib/auth-store';
 import { getOnboardingSplit, OnboardingSplit } from '../../lib/onboarding-storage';
+import { goBackSafely } from '../../lib/safe-back';
 import { useUsernameAvailability } from '../../lib/use-username-availability';
 
 const SPLIT_LABEL_KEY: Record<OnboardingSplit, string> = {
@@ -83,6 +85,10 @@ export default function SignupScreen() {
 
   return (
     <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-6 px-6 py-16">
+      <Pressable onPress={() => goBackSafely('/onboarding/split')}>
+        <ChevronLeft color="#F5F1EC" size={28} />
+      </Pressable>
+
       <OnboardingProgress current={3} />
 
       {split ? (

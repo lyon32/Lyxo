@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 
 import { AuthTextInput } from '../../components/AuthTextInput';
 import { mapAuthError } from '../../lib/auth-errors';
 import { useAuthStore } from '../../lib/auth-store';
+import { goBackSafely } from '../../lib/safe-back';
 
 export default function ForgotPasswordScreen() {
   const { t } = useTranslation();
@@ -32,7 +32,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <View className="flex-1 gap-6 bg-bg px-6 py-16">
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={() => goBackSafely('/auth/login')}>
         <ChevronLeft color="#F5F1EC" size={28} />
       </Pressable>
 
