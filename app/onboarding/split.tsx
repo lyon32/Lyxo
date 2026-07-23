@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { SelectableCard } from '../../components/SelectableCard';
 import { OnboardingSplit, setOnboardingSplit } from '../../lib/onboarding-storage';
+import { goBackSafely } from '../../lib/safe-back';
 
 export default function SplitScreen() {
   const { t } = useTranslation();
@@ -19,7 +21,12 @@ export default function SplitScreen() {
 
   return (
     <View className="flex-1 justify-between bg-bg px-6 py-16">
-      <OnboardingProgress current={2} />
+      <View className="gap-4">
+        <Pressable onPress={() => goBackSafely('/onboarding/goal')}>
+          <ChevronLeft color="#F5F1EC" size={28} />
+        </Pressable>
+        <OnboardingProgress current={2} />
+      </View>
 
       <View className="gap-4">
         <Text className="text-center text-2xl text-fg">{t('onboarding.split.title')}</Text>
