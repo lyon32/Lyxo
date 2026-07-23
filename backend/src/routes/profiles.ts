@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { asyncHandler } from '../lib/async-handler';
+import { computeBillingRegion } from '../lib/billing-region';
+import { isValidCountryCode } from '../lib/countries';
 import { AppError } from '../lib/errors';
+import { lookupCountryFromIp } from '../lib/geo-ip';
+import { logger } from '../lib/logger';
 import { getSupabaseAdmin } from '../lib/supabase-admin';
 import { isValidUsername, suggestUsernames } from '../lib/username';
 import { rateLimit } from '../middleware/rate-limit';
@@ -152,6 +156,65 @@ profilesRouter.patch(
       .update({ ...rest, ...(username !== undefined ? { username } : {}) })
       .eq('id', req.auth!.userId)
       .select()
+      .single();
+
+    if (error) {
+      next(new AppError('INTERNAL_ERROR', error.message));
+      return;
+    }
+
+    res.status(200).json(data);
+  }),
+);
+
+const billingRegionSchema = z.object({
+  declared_country: z.string().optional(),
+});
+
+// PATCH /v1/profiles/me/billing-region — auth requise. billing_region est
+// calculé et stocké ICI, jamais accepté tel quel du client (BILLING_FLOW.md
+// §2 : pays déclaré prioritaire, IP en confirmation seulement, jamais
+// recalculé en douce après ce premier calcul à l'inscription). Le pays
+// DÉCLARÉ n'existe pas encore côté UI (écran country picker = ROADMAP 1.8) —
+// pour l'instant seul le signal IP est disponible en pratique.
+profilesRouter.patch(
+  '/v1/profiles/me/billing-region',
+  requireAuth,
+  asyncHandler(async (req, res, next) => {
+    const parsed = billingRegionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(new AppError('VALIDATION_ERROR', 'Invalid body.', parsed.error.issues));
+      return;
+    }
+
+    const { declared_country } = parsed.data;
+    if (declared_country && !isValidCountryCode(declared_country)) {
+      next(
+        new AppError('VALIDATION_ERROR', 'Invalid country code.', {
+          fields: ['declared_country'],
+        }),
+      );
+      return;
+    }
+
+    const ipCountry = lookupCountryFromIp(req.ip ?? '');
+    const { billingRegion, conflict } = computeBillingRegion(declared_country ?? null, ipCountry);
+
+    if (conflict) {
+      logger.warn(
+        { userId: req.auth!.userId, declaredCountry: declared_country, ipCountry },
+        'billing_region conflict: declared country wins over IP',
+      );
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('profiles')
+      .update({
+        billing_region: billingRegion,
+        ...(declared_country ? { country: declared_country } : {}),
+      })
+      .eq('id', req.auth!.userId)
+      .select('id, billing_region, country')
       .single();
 
     if (error) {

@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { create } from 'zustand';
 
+import { computeBillingRegion } from './compute-billing-region';
 import { pushOnboardingChoicesIfAny } from './push-onboarding-choices';
 import { supabase } from './supabase';
 
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ status: session ? 'signed-in' : 'signed-out' });
       if (event === 'SIGNED_IN') {
         pushOnboardingChoicesIfAny();
+        computeBillingRegion();
       }
     });
   },

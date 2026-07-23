@@ -169,7 +169,36 @@
   écran "Link expired" + "Resend email" affiché, pas de crash) — le
   code app (app/auth/reset-password.tsx) est donc sain, seul le
   transport email→app via schéma personnalisé est en cause.
-- [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
+- [x] **1.7** billing_region : détection pays déclaré + IP (`lib/
+  billing-region.ts` + intégration à l'onboarding), stockage serveur.
+
+  Fait : backend/src/lib/billing-region.ts (fonction pure,
+  computeBillingRegion), backend/src/lib/geo-ip.ts (geoip-lite, offline,
+  pas d'appel réseau externe), backend/src/config/billing-regions.ts
+  (AFRICA_MOMO_COUNTRIES = ['CM'] uniquement en V1 — CI/Sénégal = Phase 3
+  produit, PRICING.md), backend/src/lib/countries.ts (liste fermée ISO
+  3166-1 alpha-2, réutilisable par le country picker de 1.8). Nouvelle
+  route PATCH /v1/profiles/me/billing-region (documentée API_SPEC.md
+  §4.2) — calcul et stockage strictement serveur, jamais accepté du
+  client (cohérent avec le 403 déjà en place sur PATCH /v1/profiles/me).
+  `app.set('trust proxy', true)` ajouté (bug latent découvert : sans ça,
+  req.ip derrière le proxy Render ne reflète pas le vrai client, cassait
+  aussi silencieusement le rate-limit par IP de check-username depuis
+  1.6). App : lib/compute-billing-region.ts appelé après chaque
+  SIGNED_IN (auth-store.ts) — pas encore de pays déclaré tant que
+  l'écran country picker (1.8) n'existe pas, IP seule en pratique pour
+  l'instant ; recalcul à chaque connexion accepté comme simplification
+  temporaire (convergent tant qu'aucun pays n'est déclaré), à
+  reconsidérer une fois 1.8 livré pour respecter à la lettre "jamais
+  recalculé en douce" (BILLING_FLOW.md §2).
+
+  Testé en local avec un vrai JWT signé : sans pays déclaré → intl_iap
+  (IP localhost) ; declared_country=CM → africa_momo ; declared_country=
+  FR → intl_iap ; code pays invalide → 400 VALIDATION_ERROR. Bug de
+  dépendance corrigé au passage : `@supabase/supabase-js` plantait à la
+  construction du client sur Node 20 (pas de WebSocket natif, requis
+  seulement depuis Node 22, pour son sous-client Realtime jamais
+  utilisé) — fourni `ws` en transport (lib/supabase-admin.ts).
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo
   avec suggestions (filtre §Q10). Suite visuelle sans jauge de

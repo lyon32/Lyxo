@@ -19,6 +19,12 @@ import { profilesRouter } from './routes/profiles';
 
 const app = express();
 
+// Render est derrière un reverse proxy — sans ça, req.ip renvoie l'IP
+// interne du proxy (pas le vrai client), ce qui casserait à la fois le
+// rate-limit par IP (déjà en place, check-username) et la détection
+// billing_region par IP (lib/geo-ip.ts, ROADMAP 1.7).
+app.set('trust proxy', true);
+
 app.use(cors());
 app.use(express.json());
 app.use(pinoHttp({ logger }));

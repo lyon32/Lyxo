@@ -166,6 +166,19 @@ qu'une optimisation du chemin email). **Rejeté 403**
 si le body contient `billing_region`, `trial_*`, `is_reviewer`,
 `is_premium` (n'existe pas), ou tout champ dérivé/serveur-only.
 
+#### `PATCH /v1/profiles/me/billing-region` (ajouté ROADMAP 1.7)
+Auth requise. Body optionnel : `{ "declared_country"?: "CM" }` (ISO 3166-1
+alpha-2, liste fermée — `400 VALIDATION_ERROR` sinon). Calcule et stocke
+`billing_region` **côté serveur uniquement** (BILLING_FLOW.md §2) : pays
+déclaré prioritaire si fourni, IP de la requête (`req.ip`, via
+`geoip-lite`) en confirmation sinon/en cas d'absence — jamais l'inverse,
+jamais accepté tel quel du body. Conflit déclaré/IP : le déclaré gagne,
+l'écart est loggé (pino `warn`) pour revue, jamais bloquant. Appelé par
+l'app après chaque `SIGNED_IN` (`lib/compute-billing-region.ts`) — pas
+encore de pays déclaré tant que l'écran country picker (1.8) n'existe
+pas, donc IP seule en pratique jusque-là.
+→ `200 { "id", "billing_region", "country" }`.
+
 #### `DELETE /v1/profiles/me`
 Auth requise. Soft-delete du compte (30j réversible, §18.5/§20.3) →
 `202 Accepted` (traitement différé, pas immédiat). Body optionnel

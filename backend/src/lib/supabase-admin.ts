@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 import type { Database } from '../types/supabase';
 
@@ -21,6 +22,14 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
 
   client = createClient<Database>(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    // On n'utilise jamais Realtime (juste .from().select/update) mais le
+    // client sous-jacent vérifie quand même le support WebSocket natif à
+    // la construction — absent sur Node 20 (natif seulement depuis Node
+    // 22). Fournir `ws` évite le throw, même sans jamais s'en servir.
+    // `ws` et le type DOM WebSocket ne s'unifient pas proprement — `any`
+    // ciblé sur ce seul champ plutôt qu'un cast global.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    realtime: { transport: ws as any },
   });
   return client;
 }
