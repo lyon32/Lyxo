@@ -137,11 +137,36 @@
   supabase-js retombait sur PKCE "plain" au lieu de "S256" sans ça.
   **"Confirm email" corrigé et reconfirmé** (2e test signup : session
   immédiate, email_confirmed_at rempli automatiquement, profil créé,
-  GET /v1/profiles/me OK). Les 5 réglages manuels Supabase Dashboard
-  sont maintenant tous vérifiés bons. OAuth Google et deep link reset
-  password : pattern correct sur le papier, toujours pas testés de
-  bout en bout sur device (le
-  test JWT ci-dessus valide le backend, pas le flow OAuth complet).
+  GET /v1/profiles/me OK).
+
+  **Google OAuth testé sur device réel et fonctionnel** (Client Secret
+  Google Cloud Console corrigé — le mauvais avait été collé au départ).
+  Bug de course PKCE résolu (app/auth/callback.tsx + signInWithGoogle
+  peuvent tous les deux tenter d'échanger le même code selon que
+  l'interception WebBrowser réussisse ou non — repli sur vérification
+  de session existante). Boutons retour corrigés/ajoutés sur tous les
+  écrans auth + onboarding (goBackSafely, lib/safe-back.ts — router.back()
+  plantait sans historique de navigation, ex. après déconnexion).
+  Lien "Log in" du Welcome corrigé (pointait vers Inscription).
+
+  ⚠️ **Reset password : limite structurelle découverte (2026-07-23),
+  pas un bug de notre code.** Le lien email Supabase redirige via
+  `https://.../auth/v1/verify?...&redirect_to=lyxo://auth/reset-password`
+  — Chrome/mobile (et les liens Gmail via leur wrapper google.com/url)
+  **refusent de suivre une redirection HTTP serveur vers un schéma
+  personnalisé** (`lyxo://`), même lien copié/ouvert directement : page
+  blanche, rien ne se passe. Confirmé identique pour un compte Google et
+  un compte email classique — donc bien un problème de transport, pas
+  lié au provider. **Solution réelle : App Link Android vérifié
+  (`https://lyxo.app/reset/{token}`, assetlinks.json + intentFilters
+  app.json) au lieu du schéma `lyxo://`** — nécessite un minimum de
+  présence web sur lyxo.app (déjà listé comme devant exister,
+  PROJECT_BRIEF non-goal 6 : "/reset/{token}"), pas encore construit.
+  Tâche dédiée à créer, distincte de 1.6. Le code app côté écran
+  (app/auth/reset-password.tsx, exchangeCodeForSession) reste à
+  vérifier indépendamment via un test ADB direct (`adb shell am start
+  -a android.intent.action.VIEW -d "lyxo://auth/reset-password?code=..."`)
+  pour confirmer qu'il ne reste que le transport en cause.
 - [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo
