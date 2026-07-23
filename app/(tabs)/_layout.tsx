@@ -17,6 +17,8 @@ export default function TabsLayout() {
       router.replace('/onboarding/language');
     } else if (gateStatus === 'needs-auth') {
       router.replace('/auth');
+    } else if (gateStatus === 'needs-post-auth') {
+      router.replace('/onboarding/onboarding-details');
     }
   }, [gateStatus]);
 

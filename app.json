@@ -34,7 +34,9 @@
           "project": "react-native",
           "organization": "lyxo"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-splash-screen"
     ],
     "experiments": {
       "typedRoutes": true

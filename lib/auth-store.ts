@@ -2,7 +2,6 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { create } from 'zustand';
 
-import { computeBillingRegion } from './compute-billing-region';
 import { pushOnboardingChoicesIfAny } from './push-onboarding-choices';
 import { supabase } from './supabase';
 
@@ -44,8 +43,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     supabase.auth.onAuthStateChange((event, session) => {
       set({ status: session ? 'signed-in' : 'signed-out' });
       if (event === 'SIGNED_IN') {
+        // billing_region n'est PLUS recalculé ici (BILLING_FLOW.md §2 :
+        // "jamais recalculée en douce") — le vrai déclencheur unique est
+        // désormais la soumission de l'écran 2bis (lib/compute-billing-
+        // region.ts, ROADMAP 1.8).
         pushOnboardingChoicesIfAny();
-        computeBillingRegion();
       }
     });
   },

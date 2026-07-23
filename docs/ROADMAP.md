@@ -199,11 +199,35 @@
   construction du client sur Node 20 (pas de WebSocket natif, requis
   seulement depuis Node 22, pour son sous-client Realtime jamais
   utilisé) — fourni `ws` en transport (lib/supabase-admin.ts).
-- [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
+- [x]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo
   avec suggestions (filtre §Q10). Suite visuelle sans jauge de
   progression (les 3 étapes construites en 1.5bis sont déjà
   cochées — ces écrans sont administratifs, pas "de construction").
+  `app/onboarding/onboarding-details.tsx` (nom exact du fichier fixé par
+  LLD.md §1.1) : sélecteur pays (`lib/countries.ts`, miroir client de la
+  liste fermée backend + noms localisés via `i18n-iso-countries`,
+  `components/CountryPickerModal.tsx` avec recherche), toggle kg/lbs,
+  carte Data Saver (toggle `data_saver`), carte règle 90 jours (texte
+  §18.6 exact), champ pseudo conditionnel — affiché uniquement si
+  `username` porte encore le préfixe `lyxo_` du fallback OAuth
+  (`handle_new_user`), donc jamais redemandé si déjà saisi à l'écran 3.
+  Filtre Q10 (`lib/pseudo-filter.ts`) : liste courte de recommandation
+  FR/camfranglais, jamais un blocage dur, suggestions neutres affichées
+  sous le champ. Soumission : `PATCH /v1/profiles/me/billing-region`
+  (declared_country) puis `PATCH /v1/profiles/me` (weight_unit,
+  data_saver, username si modifié) → `/(tabs)`.
+  **Bug corrigé au passage (dette notée depuis 1.7)** : `billing_region`
+  était recalculé à CHAQUE `SIGNED_IN` (`lib/auth-store.ts`) au lieu
+  d'une fois à l'inscription (BILLING_FLOW.md §2 : "jamais recalculée en
+  douce") — l'appel a été retiré du listener et déplacé dans la
+  soumission de cet écran, seul vrai point de déclenchement unique
+  maintenant qu'un pays déclaré existe.
+  Gate de navigation étendu (`lib/use-onboarding-gate.ts`, nouveau statut
+  `needs-post-auth`) : déclenché tant que `profiles.country` est NULL
+  (pas de nouvelle colonne — ce champ existant sert de signal "onboarding
+  post-auth pas encore fait"), fail-open sur erreur réseau (ne bloque
+  jamais l'accès à l'app déjà installée).
 
 ## PHASE 2 — LE LOGGER (Bloc B)
 

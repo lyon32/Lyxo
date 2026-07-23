@@ -47,6 +47,26 @@
       "full_body": "Full Body",
       "full_body_days": "3 jours/semaine",
       "cta": "Continuer"
+    },
+    "details": {
+      "title": "Dernière étape",
+      "subtitle": "Quelques infos pour personnaliser ton expérience.",
+      "country_label": "Pays",
+      "country_placeholder": "Choisir ton pays",
+      "country_picker_title": "Choisis ton pays",
+      "country_picker_search": "Rechercher un pays",
+      "unit_label": "Unité de poids",
+      "unit_kg": "kg",
+      "unit_lbs": "lbs",
+      "data_saver_title": "Économiser tes données ?",
+      "data_saver_subtitle": "Images et vidéos en qualité réduite sur réseau mobile. Modifiable à tout moment dans Paramètres.",
+      "history_rule": "Ton historique complet est conservé pour toujours. L'affichage gratuit couvre les 90 derniers jours.",
+      "pseudo_label": "Pseudo",
+      "pseudo_hint_problematic": "Ce pseudo pourrait poser problème. Essaie plutôt :",
+      "cta": "Continuer",
+      "error_country_required": "Choisis ton pays pour continuer.",
+      "error_pseudo_taken": "Ce pseudo est déjà pris.",
+      "error_generic": "Une erreur est survenue. Réessaie."
     }
   },
   "auth": {
