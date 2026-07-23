@@ -1,9 +1,28 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { View } from 'react-native';
+import { Tabs, router } from 'expo-router';
 import { Compass, Dumbbell, House, TrendingUp, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
+import { useOnboardingGate } from '../../lib/use-onboarding-gate';
+
+// Gate vérifié ici (pas juste sur l'onglet Accueil) : une déconnexion
+// déclenchée depuis n'importe quel onglet doit rediriger vers l'auth.
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const gateStatus = useOnboardingGate();
+
+  useEffect(() => {
+    if (gateStatus === 'needs-onboarding') {
+      router.replace('/onboarding/language');
+    } else if (gateStatus === 'needs-auth') {
+      router.replace('/auth');
+    }
+  }, [gateStatus]);
+
+  if (gateStatus !== 'ready') {
+    return <View className="flex-1 bg-bg" />;
+  }
 
   return (
     <Tabs

@@ -14,6 +14,9 @@
   "discover": {
     "placeholder": "Coming soon"
   },
+  "profile": {
+    "sign_out": "Log out"
+  },
   "onboarding": {
     "language": {
       "french": "Français",
