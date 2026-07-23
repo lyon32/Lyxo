@@ -162,11 +162,13 @@
   app.json) au lieu du schéma `lyxo://`** — nécessite un minimum de
   présence web sur lyxo.app (déjà listé comme devant exister,
   PROJECT_BRIEF non-goal 6 : "/reset/{token}"), pas encore construit.
-  Tâche dédiée à créer, distincte de 1.6. Le code app côté écran
-  (app/auth/reset-password.tsx, exchangeCodeForSession) reste à
-  vérifier indépendamment via un test ADB direct (`adb shell am start
-  -a android.intent.action.VIEW -d "lyxo://auth/reset-password?code=..."`)
-  pour confirmer qu'il ne reste que le transport en cause.
+  Tâche dédiée à créer, distincte de 1.6. **Confirmé par test ADB direct**
+  (`adb shell am start -a android.intent.action.VIEW -d "lyxo://auth/
+  reset-password?code=..."`) : l'écran réagit correctement à un deep
+  link reçu (tentative d'échange, échec propre sur code invalide,
+  écran "Link expired" + "Resend email" affiché, pas de crash) — le
+  code app (app/auth/reset-password.tsx) est donc sain, seul le
+  transport email→app via schéma personnalisé est en cause.
 - [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo
