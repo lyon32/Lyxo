@@ -126,10 +126,21 @@
      vérifier, ou domaine sandbox Resend en attendant) pour l'email de
      reset password.
 
-  Non testé en conditions réelles (pas d'émulateur/device dans cette
-  session) : le flow OAuth Google et le deep link de reset password —
-  correct sur le papier (pattern officiel Expo/Supabase PKCE), à
-  vérifier sur device une fois la config ci-dessus faite.
+  **MàJ 2026-07-23 — vérifié en conditions réelles** (dev client Android
+  sur émulateur + tests curl avec un vrai JWT signé) : SUPABASE_SERVICE_
+  ROLE_KEY posée sur Render ✅, GET/PATCH /v1/profiles/me fonctionnent
+  bout en bout avec un vrai token (vérification JWKS OK), trigger
+  handle_new_user OK (username repris depuis raw_user_meta_data), 403
+  bien renvoyé sur champ hors allowlist (billing_region testé). Ajout
+  polyfill WebCrypto (lib/webcrypto-polyfill.ts, expo-crypto +
+  react-native-get-random-values) — Hermes n'a pas crypto.subtle,
+  supabase-js retombait sur PKCE "plain" au lieu de "S256" sans ça.
+  ⚠️ **"Confirm email" semble encore actif** malgré le réglage —
+  un signup de test n'a renvoyé aucune session (email_confirmed_at
+  null en base) ; à revérifier dans Supabase Dashboard (bien cliquer
+  Save). OAuth Google et deep link reset password : pattern correct
+  sur le papier, toujours pas testés de bout en bout sur device (le
+  test JWT ci-dessus valide le backend, pas le flow OAuth complet).
 - [ ]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 - [ ]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo

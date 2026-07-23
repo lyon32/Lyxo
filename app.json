@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.lyon32.lyxo"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +37,12 @@
         "projectId": "67a75511-82c4-4905-996f-4f32c79aba82"
       }
     },
-    "owner": "lyon32"
+    "owner": "lyon32",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/67a75511-82c4-4905-996f-4f32c79aba82"
+    }
   }
 }
