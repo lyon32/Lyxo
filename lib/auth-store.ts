@@ -82,8 +82,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       return { error: null, cancelled: true };
     }
 
+    // Le deep link peut AUSSI atteindre app/auth/callback.tsx en parallèle
+    // (interception navigateur pas fiable sur tous les Android) — code
+    // PKCE à usage unique, donc si ce chemin perd la course, une session
+    // existe déjà via l'autre : pas une vraie erreur dans ce cas.
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
-    return { error: exchangeError, cancelled: false };
+    if (!exchangeError) return { error: null, cancelled: false };
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return { error: session ? null : exchangeError, cancelled: false };
   },
 
   signOut: async () => {

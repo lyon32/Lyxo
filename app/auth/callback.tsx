@@ -9,9 +9,10 @@ import { supabase } from '../../lib/supabase';
 // openAuthSessionAsync` (lib/auth-store.ts) est censé intercepter cette
 // URL avant qu'elle n'atteigne la navigation de l'app, mais ce n'est pas
 // fiable sur tous les Android/navigateurs — cet écran gère le cas où le
-// deep link arrive ici directement (code déjà consommé par
-// openAuthSessionAsync = no-op silencieux, exchangeCodeForSession
-// échoue proprement dans ce cas).
+// deep link arrive ici directement. Les deux chemins peuvent tenter
+// d'échanger le MÊME code PKCE (usage unique) : si celui-ci échoue ici
+// parce que l'autre l'a déjà consommé avec succès, une session existe
+// déjà — on vérifie ça avant de considérer que ça a vraiment échoué.
 export default function AuthCallbackScreen() {
   const { t } = useTranslation();
   const params = useLocalSearchParams<{ code?: string; error_description?: string }>();
@@ -21,16 +22,31 @@ export default function AuthCallbackScreen() {
     if (!params.code || params.error_description) return;
 
     let cancelled = false;
-    supabase.auth.exchangeCodeForSession(`lyxo://auth/callback?code=${params.code}`).then(
-      ({ error }) => {
-        if (cancelled) return;
-        if (error) {
-          setExchangeFailed(true);
-          return;
-        }
+
+    const run = async () => {
+      const { error } = await supabase.auth.exchangeCodeForSession(
+        `lyxo://auth/callback?code=${params.code}`,
+      );
+      if (cancelled) return;
+
+      if (!error) {
         router.replace('/(tabs)');
-      },
-    );
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      if (session) {
+        router.replace('/(tabs)');
+      } else {
+        setExchangeFailed(true);
+      }
+    };
+
+    run();
 
     return () => {
       cancelled = true;
