@@ -96,7 +96,8 @@
       "user_already_exists": "Un compte existe déjà avec cet email. Se connecter ?",
       "weak_password": "8 caractères minimum.",
       "offline": "Connexion requise pour créer ton compte. Tes choix sont gardés — réessaie dès que tu as du signal.",
-      "generic": "Une erreur est survenue. Réessaie."
+      "generic": "Une erreur est survenue. Réessaie.",
+      "back_to_login": "Retour à la connexion"
     }
   }
 }

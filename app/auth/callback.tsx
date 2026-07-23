@@ -17,6 +17,7 @@ export default function AuthCallbackScreen() {
   const { t } = useTranslation();
   const params = useLocalSearchParams<{ code?: string; error_description?: string }>();
   const [exchangeFailed, setExchangeFailed] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!params.code || params.error_description) return;
@@ -24,9 +25,9 @@ export default function AuthCallbackScreen() {
     let cancelled = false;
 
     const run = async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession(
-        `lyxo://auth/callback?code=${params.code}`,
-      );
+      // Code brut, pas une URL reconstruite — évite tout parsing ambigu
+      // d'un schéma custom (lyxo://) par l'implémentation URL de RN.
+      const { error } = await supabase.auth.exchangeCodeForSession(params.code!);
       if (cancelled) return;
 
       if (!error) {
@@ -42,6 +43,9 @@ export default function AuthCallbackScreen() {
       if (session) {
         router.replace('/(tabs)');
       } else {
+        // Diagnostic temporaire — a retirer une fois le flow OAuth stabilise
+        console.error('exchangeCodeForSession failed:', error);
+        setDebugMessage(error.message);
         setExchangeFailed(true);
       }
     };
@@ -62,8 +66,13 @@ export default function AuthCallbackScreen() {
   return (
     <View className="flex-1 items-center justify-center gap-4 bg-bg px-6">
       <Text className="text-fg">{t('auth.errors.generic')}</Text>
+      {__DEV__ && (debugMessage || params.error_description) ? (
+        <Text className="text-center text-muted">
+          {debugMessage ?? params.error_description}
+        </Text>
+      ) : null}
       <Pressable onPress={() => router.replace('/auth/login')}>
-        <Text className="text-muted">{t('auth.login.switch_to_signup')}</Text>
+        <Text className="text-muted">{t('auth.errors.back_to_login')}</Text>
       </Pressable>
     </View>
   );

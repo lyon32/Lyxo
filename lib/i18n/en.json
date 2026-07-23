@@ -96,7 +96,8 @@
       "user_already_exists": "An account already exists with this email. Log in?",
       "weak_password": "8 characters minimum.",
       "offline": "Connection required to create your account. Your choices are saved — try again once you have signal.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "back_to_login": "Back to login"
     }
   }
 }
