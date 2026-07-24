@@ -15,7 +15,19 @@
 ```
 lyxo-app/
 ├── app/                          # expo-router (file-based routing)
-│   ├── (auth)/                   # arbre mis à jour — audit doc passe 6 (fiche 19/23)
+│   ├── (auth)/                   # ⚠️ CORRECTION (audit doc, Phase 1) : la structure
+│   │   │                         #   RÉELLEMENT livrée utilise deux dossiers PLATS
+│   │   │                         #   `app/auth/` + `app/onboarding/` (segments visibles
+│   │   │                         #   dans l'URL, ex. /auth/login) et non ce route group
+│   │   │                         #   `(auth)/` (segment masqué, ex. /login). Déviation
+│   │   │                         #   fonctionnellement neutre mais jamais actée par écrit
+│   │   │                         #   avant cet audit — renommer maintenant coûterait un
+│   │   │                         #   refactor de tous les router.push/replace pour un
+│   │   │                         #   bénéfice nul ; on documente la réalité plutôt que
+│   │   │                         #   de forcer la conformité de l'arbre. Fichiers réels :
+│   │   │                         #   app/onboarding/(language|welcome|goal|split|
+│   │   │                         #   onboarding-details).tsx + app/auth/(index=signup|
+│   │   │                         #   login|forgot-password|reset-password|callback).tsx.
 │   │   ├── language.tsx          # 1bis — PREMIER ÉCRAN ABSOLU (choix FR/EN avant tout — CLAUDE.md §7/§8)
 │   │   ├── welcome.tsx           # 1ter — pitch + offline fusionnés (photo hero réelle,
 │   │   │                         #   PHOTO HERO EXCEPTION §19.8bis) ; anciennement offline.tsx
@@ -26,18 +38,32 @@ lyxo-app/
 │   │   ├── forgot-password.tsx   # écran 3quater, étape 1 (saisie email)
 │   │   ├── reset-password.tsx    # écran 3quater, étape 3 (deep link lyxo.app/reset/{token})
 │   │   └── onboarding-details.tsx # écran 2bis (post-auth) — pays/unité/Data Saver/règle 90j/pseudo
-│   ├── (tabs)/
-│   │   ├── _layout.tsx           # les 5 onglets (Accueil·Log·Progrès·Discover·Profil)
-│   │   ├── index.tsx             # Accueil
-│   │   ├── log/
-│   │   │   ├── index.tsx         # sélection séance
-│   │   │   ├── [workoutId].tsx   # Workout Logger
-│   │   │   └── rest-timer.tsx
-│   │   ├── progress.tsx
-│   │   ├── discover.tsx          # placeholder V1, actif S13+
-│   │   └── profile/
-│   │       ├── index.tsx
-│   │       └── [userId].tsx      # profil d'un autre user
+│   ├── (tabs)/                   # ⚠️ RÉGÉNÉRÉ (audit doc #16) pour refléter
+│   │   │                         #   §6.1 (nav restructure 2026-07-24) — cette
+│   │   │                         #   section décrivait encore l'ANCIENNE nav
+│   │   │                         #   5 onglets (Accueil·Log·Progrès·Discover·
+│   │   │                         #   Profil), remplacée par Home·Log·Search·
+│   │   │                         #   Performance·Shop, Profil retiré de la tab
+│   │   │                         #   bar. "profile" reste routé DANS ce groupe
+│   │   │                         #   (`href: null` le masque de la barre sans
+│   │   │                         #   le retirer du routeur) — accès via
+│   │   │                         #   l'avatar en haut à droite de Home.
+│   │   ├── _layout.tsx           # 5 routes visibles : Home·Log·Search·
+│   │   │                         #   Performance·Shop + "profile" masqué (§6.1)
+│   │   ├── index.tsx             # Home
+│   │   ├── log.tsx               # Log — fichier plat (pas de sous-dossier ;
+│   │   │                         #   Workout Logger/rest-timer pas encore
+│   │   │                         #   scindés en sous-écrans, prévu Bloc B)
+│   │   ├── search.tsx            # Search — remplace `discover.tsx` (§6.1) :
+│   │   │                         #   bibliothèque d'exercices, sous-tabs
+│   │   │                         #   "Feed"/"Discover" en pills texte
+│   │   ├── progress.tsx          # Performance (nom d'écran ; fichier historique `progress.tsx`)
+│   │   ├── shop.tsx              # Shop — v2, vide en v1 (marketplace coach, §6.1/§6.4)
+│   │   └── profile.tsx           # Profil — fichier plat, routé hors tab bar (§6.1)
+│   ├── messages.tsx              # AJOUTÉ (audit doc #16) — manquait à l'arbre ;
+│   │                             #   inbox chat Partners + dossier "Requests" (§6.8)
+│   ├── notifications.tsx         # AJOUTÉ (audit doc #16) — manquait à l'arbre ;
+│   │                             #   liste notifications (Conquête, follows, coach)
 │   ├── coach/
 │   │   ├── clients.tsx
 │   │   ├── programs/
@@ -98,6 +124,9 @@ lyxo-app/
 │
 ├── api/                          # client HTTP typé (Data Contract = API_SPEC.md)
 │   ├── client.ts                 # instance fetch/axios + intercepteur JWT
+│   ├── profiles.ts               # AJOUTÉ (audit doc #20) — manquait à l'arbre ;
+│   │                             #   check-username, me, billing-region, export,
+│   │                             #   delete (API_SPEC §4.2)
 │   ├── sync.ts
 │   ├── social.ts
 │   ├── coach.ts
@@ -370,6 +399,111 @@ sont reconstruits à froid au démarrage.
   le fichier testé (pas de dossier `__tests__` séparé).
 - **Migrations SQL** : `YYYYMMDDHHMMSS_verbe_objet.sql`
   (`20260801120000_create_personal_records.sql`).
+
+---
+
+## 6. REDESIGN RÉFÉRENCE (brainstorm design, 26 captures, 2026-07-24)
+
+> Décidé image par image avec Lionel à partir d'un screenshot-reference
+> d'une app fitness/social existante. **Palette Braise inchangée** —
+> `tailwind.config.js` (bg/card/input/border/muted/fg/ember/steel) reste la
+> seule source de couleurs UI ; seuls structure/composants/copy sont
+> adoptés depuis la référence. ROADMAP.md 4.8-4.13 + Phase 5bis portent le
+> détail d'exécution ; ce qui suit est la spec écran par écran.
+
+### 6.1 Nav restructure
+Remplace les 5 tabs actuels (`index`/`log`/`progress`/`discover`/`profile`) :
+**Home** · **Log** · **Search** (sous-tabs "Feed"/"Discover" en pills texte) ·
+**Performance** (= `progress.tsx`) · **Shop** (v2, vide en v1 — marketplace
+coach) · **Actions** ("...", bottom-sheet, pas un écran). Profil retiré de
+la tab bar → icône avatar en haut à droite de Home.
+
+> ⚠️ **Révision 2026-07-24** : `log.tsx` avait été initialement retiré de la
+> tab bar (remplacé par le sheet "Add Exercise" + l'écran Exercises via
+> Actions), pour coller à l'image de référence (4 icônes + "..." sans Log
+> distinct). Lionel a demandé de le remettre visible dans la pilule —
+> `app/(tabs)/_layout.tsx` l'affiche désormais en 2e position (après Home).
+> Toujours aussi accessible via Actions → Exercises (même fichier/route,
+> les deux chemins coexistent sans duplication de code).
+
+### 6.2 Home (`app/(tabs)/index.tsx`)
+- Header : "Today ▾" + salutation ("Good Morning"/"Good Afternoon"...) à
+  gauche, 3 icônes à droite — notifications (badge rouge), messages,
+  avatar profil.
+- "Today ▾" ouvre un calendrier mensuel (nav mois ← →, jour sélectionné en
+  bleu accent, bouton "Done") avec un indicateur discret sous les jours
+  ayant une séance loggée.
+- Bandeau conseil dismissible (ex. "Hold the button below to load
+  previous workouts") + croix pour le fermer, état persisté.
+- CTA principal : carte large "Start Workout" / sous-titre "Plan your next
+  session" + bouton circulaire flèche.
+- Module streak "Last 2 Weeks" : grille 7 jours × 2 semaines (S-M-T-W-T-F-S),
+  jour courant marqué, compteur "active days" en tête de section.
+- Pas de card "split actif" (le concept Splits/Routines est retiré, voir
+  §6.4).
+
+### 6.3 Écran détail Workout (ouvert depuis feed/profil)
+Ordre vertical fixe : header auteur (avatar+handle) + date → titre →
+stats row (Duration / Exercises / PRs) → row social (Likes / Comments) →
+**photo si postée** (optionnelle, jamais obligatoire au moment du post) →
+schéma anatomique → liste d'exercices.
+
+- **PR** (stat "PRs") = volume max historique atteint sur cet exercice
+  (pas poids max, pas 1RM estimé — distinct de la logique 1RM déjà en
+  place pour le tier payant, CLAUDE_LYXO_V3.md Tier 2 item 2).
+- **Schéma anatomique** : 2 assets fixes (vue face + vue dos), sélection
+  logique selon les muscles travaillés dans la séance — pas un seul asset
+  qui pivote. Palette de highlight par groupe musculaire **dédiée et
+  indépendante** de la palette UI Braise (ex. orange jambes, rose dos dans
+  la référence) — exemptée de la règle "palette inchangée" car c'est une
+  couche de data-viz, pas du chrome d'app. Les groupes musculaires
+  affichés doivent utiliser les mêmes slugs `muscle_group` que la table
+  `exercises`/`lib/exercise-labels.ts` (pas une taxonomie parallèle) — la
+  correspondance couleur reste à construire, rien n'existe encore
+  (`components/MuscleFilterChips.tsx` ne fait que du style actif/inactif).
+- **Liste d'exercices** : format adaptatif — sets/reps/poids pour la
+  musculation classique ; durée/distance/allure/calories/incline pour le
+  cardio/circuit (pas un tableau unique pour tout).
+
+### 6.4 Splits / Routines / Programs — collapsed
+Le plan initial (Splits = structure hebdo type Push/Pull/Legs, Routines =
+séances individuelles, les deux prévus v1) est abandonné. Les deux
+fusionnent en un seul concept futur, **"Programs"** — programme complet
+acheté à un coach, **v2 uniquement** (marketplace, tab Shop). En v1 :
+aucun tab Splits sur le Profil (seulement Workouts), aucun item Routines
+dans le menu Actions, aucune card split actif sur Home.
+
+### 6.5 Menu Actions ("...")
+v1 : Exercises (réutilise l'UI du sheet Add Exercise en plein écran),
+Physique (photos de progression uniquement — pas de chiffres, ceux-ci
+restent des stat cards dans Performance), Feedback (formulaire in-app →
+support client). Visibles mais grisés/désactivés (stubs v2) : Connect to
+Health (Google Fit Android / Apple Health iOS), Nutrition Tracking,
+Programs (§6.4). Abandonné définitivement, aucune version : Import.
+
+### 6.6 Settings
+v1 actif : Theme (Auto/Light/Dark segmented), unité poids (KG/LBS),
+unité distance (KM/MI), Auto Complete Sets. Visibles mais grisés (dépendent
+du Health sync v2) : Write Workouts, Write Body Metrics, Health
+Suggestions.
+
+### 6.7 Profil
+Tab unique Workouts (pas de tab Splits, §6.4). Compteurs Followers /
+Following / **Partners** (3 relations distinctes — Partners = matchs Gym
+Matching, §6.8, différent du Follow). Pas d'icône plante/gamification.
+Edit Profile garde Username/Handle/Bio/**Gym**/**Instagram Handle** ; pas
+de champ University ni de Badge Selector. Share Lift Card : nom/handle/
+nombre de partners + stats d'entraînement (streak, volume, workouts
+logged) — plus riche que le minimal de la référence.
+
+### 6.8 Gym Matching + chat Partners (override V1, voir ROADMAP Phase 5bis)
+Swipe matching entre lifters compatibles → relation "Partners" distincte
+du Follow. Chat in-app avec dossier "Requests" (style Instagram) pour les
+messages entrants hors-Partners : accord explicite requis avant de
+rejoindre l'inbox principale — un Partner matché va direct en inbox. Ce
+système était classé non-goal V2+ (CLAUDE_LYXO_V3.md §18 / PROJECT_BRIEF.md
+non-goal 3) avant d'être explicitement débloqué pour la V1 le 2026-07-24 —
+voir ces deux fichiers pour la trace de la décision.
 
 ---
 

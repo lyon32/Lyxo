@@ -35,7 +35,7 @@ premier si le planning glisse) · 🔵 V2 (Phase 2-3, planifié) · ⚪ Future
 | Détection PR (4 types) | 🟢 | + règles anti-triche §18.1 |
 | Célébration PR + carte partageable | 🟢 | Zéro photo IA — audit design 1.6 |
 | Écran résumé fin de séance (peak-end) | 🟢 | Audit §4.5 |
-| Pack 50 exercices embarqué + 150 à la demande | 🟢 | Assumption : liste à valider coachs beta |
+| Pack 50 exercices embarqué + 150 à la demande | 🟢 | Assumption : liste à valider coachs beta — suivi formel : IDEAS_BACKLOG.md #5, jalon avant ROADMAP Phase 7.6 (recrutement des 10 coachs finalisé) |
 | Exercices custom (5 max gratuit) | 🟢 | |
 | Unités kg/lbs (stockage kg canonique) | 🟢 | §19.15 |
 | Séance Fantôme (ghost du dernier entraînement) | 🔵 | V2 — coût Realtime élevé |
@@ -186,6 +186,14 @@ intégralement, avec un rappel doux dans Paramètres.
    facto par le reset et les emails billing) · Android V1 = Google +
    email uniquement (le bouton Apple n'apparaît que sur le build iOS,
    où il est premier et égal — App Store Review 4.8).
+   ⚠️ MITIGATION email non vérifié (décision Juillet 2026) : la
+   confirmation Supabase étant désactivée, un compte peut rester avec un
+   email jamais prouvé valide. Mitigation : **bandeau discret non
+   bloquant** dans l'écran Profil ("Vérifie ton email pour ne rien
+   manquer" + bouton "Renvoyer le lien") tant que `email_confirmed_at`
+   est null côté Supabase — jamais de blocage de fonctionnalité, jamais
+   de modale, juste un rappel visuel doux (cohérent avec la friction Day
+   0 qu'on refuse d'introduire).
 2. Tap "Commencer la séance" → sélection template ou séance libre.
 3. Sélection exercice → saisie poids × reps → "Valider la série" (rouge
    ember, seul CTA de l'écran) → toast "Enregistré sur ton téléphone ✓".
@@ -223,7 +231,7 @@ PawaPay → webhook → sync → déblocage).
 | # | Scénario | Comportement attendu |
 |---|---|---|
 | E1 | User logge une séance complète en mode avion, ferme l'app avant tout réseau | Zéro perte au retour du réseau — sync silencieuse au foreground (Bloc C2, DoD 1) |
-| E2 | User modifie la même séance sur 2 appareils (l'un offline) | LWW silencieux, sans toast (Q12a) — rendu possible car gratuit = 1 appareil actif (Q11b) limite le risque |
+| E2 | User modifie la même séance sur 2 appareils (l'un offline) | **Gratuit** : LWW silencieux, sans toast (Q12a) — rendu possible car 1 seul appareil actif (Q11b) limite le risque à quasi-zéro. **Lyxo+ multi-device** : LWW reste la résolution automatique (aucun merge manuel), mais un toast explicite s'affiche à la sync ("Conflit détecté, dernière version gardée") avec un accès direct à la version écrasée (lecture seule, pas de restauration silencieuse) — décision Juillet 2026, la gratuité 1-device ne justifie plus le silence dès que le multi-device Lyxo+ augmente le risque de perte perçue |
 | E3 | User A (95kg) "bat" le record d'un follow mutuel de 60kg avec un poids disproportionné | Exclu du leaderboard/Conquête si > 4× poids de corps ou delta > +15% (§18.1) — reste dans ses stats perso |
 | E4 | User atteint J91 de son historique gratuit sans avoir été prévenu | Ne doit jamais arriver : annonce onboarding + notif J75 (18.6) — si ça arrive quand même, message clair, jamais un mur silencieux |
 | E5 | User paie sur le web (Afrique) puis ouvre l'app en réseau faible | Triple filet §20.4 : push → /sync forcé, bouton "Actualiser mon statut", sync au foreground |
@@ -234,7 +242,7 @@ PawaPay → webhook → sync → déblocage).
 | E10 | User change d'unité kg↔lbs après des mois d'usage | Reconversion d'affichage instantanée, AUCUNE donnée réécrite (stockage kg canonique intouché, §19.15) |
 | E11 | Deux users se suivent mutuellement puis l'un se re-privatise | Le follow mutuel est rompu → rivalités (leaderboard/Conquête) désactivées entre eux immédiatement |
 | E12 | Compte supprimé puis même email ré-utilisé pour un nouveau compte | Purge totale à J+30 (§20.3) doit être terminée avant que l'email soit ré-attribuable, sinon collision |
-| E13 | User sans connexion ouvre l'app pour la première fois (jamais synced) | Le pack de 50 exercices embarqué doit suffire à démarrer une séance complète sans réseau (§19.5) |
+| E13 | User sans connexion ouvre l'app pour la première fois (jamais synced) | Le pack de 50 exercices embarqué doit suffire à démarrer une séance complète sans réseau (pack offline-first — voir CLAUDE_LYXO_V3.md §19.5 « Contenu & data », 1er point sur les exercices ; ne pas confondre avec le choix de langue FR/EN qui vit dans la même section, cf. PRD §1.1) |
 
 ---
 
@@ -281,5 +289,6 @@ PawaPay → webhook → sync → déblocage).
 
 *Documents liés : PROJECT_BRIEF.md (vision) · PRICING.md + BILLING_FLOW.md
 (monétisation) · CLAUDE_LYXO_V3.md (règles techniques complètes §16-20) ·
-IMPLEMENTATION_PLAN.md (séquencement S1-S16) · LYXO_UI_PROMPT.md +
-mockup Claude Design (référence visuelle).*
+IMPLEMENTATION_PLAN.md (séquencement S1-S12) · ROADMAP.md (séquencement
+S13+, Phases 8-9 et suivantes) · LYXO_UI_PROMPT.md + mockup Claude Design
+(référence visuelle).*

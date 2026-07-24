@@ -38,14 +38,28 @@ flowchart LR
 Workflow `.github/workflows/pr-checks.yml`, exécuté sur chaque PR vers
 `main` :
 1. **Install** (cache npm activé — vitesse).
-2. **Lint** (`npm run lint`) — bloquant.
-3. **Typecheck** (`npx tsc --noEmit`, app ET backend) — bloquant.
-4. **Tests unitaires** (`npm test`) — bloquant. Cible en priorité les
+2. **Secret scanning** (`gitleaks`, côté CI serveur) — bloquant. Filet en
+   complément du hook pre-commit local déjà documenté (CONVENTIONS §2,
+   ENV_SETUP §1.7) — ce dernier reste contournable localement
+   (`--no-verify`), la CI serveur est la vraie ligne de défense.
+3. **Grep chaînes interdites paywall Afrique** — scan automatisé des
+   fichiers d'écrans Afrique à la recherche des chaînes interdites
+   ("rends-toi", "lyxo.app", "payer", "activer", "abonner", "PawaPay",
+   "MoMo", "Orange Money") — **build rouge si détecté** (conformité
+   écrite Google, BILLING_FLOW §4.1/§8 — gate déjà listé au récapitulatif
+   §4, décrit ici explicitement dans le pipeline réel).
+4. **Lint** (`npm run lint`) — bloquant.
+5. **Typecheck** (`npx tsc --noEmit`, app ET backend) — bloquant.
+6. **Tests unitaires** (`npm test`) — bloquant. Cible en priorité les
    modules critiques de TESTING.md §1.1.
-5. **Tests d'intégration** (si la PR touche `sync`, `auth`, ou `billing`)
-   — contre la branche Supabase de test, pas de mock DB.
+7. **Tests d'intégration** (si la PR touche `sync`, `auth`, ou `billing`)
+   — contre la branche Supabase de **test** (éphémère, reseedée avant
+   chaque run — ENV_SETUP §1.4 topologie / §1.8 secrets
+   `SUPABASE_TEST_URL`/`SUPABASE_TEST_SERVICE_ROLE_KEY`), jamais la
+   branche staging, pas de mock DB.
 
-Le merge est **bloqué** tant que ces 4-5 étapes ne sont pas vertes.
+Le merge est **bloqué** tant que ces étapes ne sont pas vertes (l'étape 7
+ne s'applique que si sync/auth/billing est touché).
 
 ### 1.2 CodeRabbit (en parallèle de la CI, pas bloquant mais à traiter)
 - Déclenché automatiquement à l'ouverture/mise à jour de la PR (GitHub
@@ -72,6 +86,8 @@ Le merge est **bloqué** tant que ces 4-5 étapes ne sont pas vertes.
       - Vérifier qu'aucune donnée sensible (montant, user_id cible,
         billing_region) n'est acceptée depuis le body client sans
         recalcul/vérification serveur (SECURITY_NOTES §2.2)
+      - Signaler tout console.log restant hors lib/logger.ts/Sentry
+        (CONVENTIONS §6)
   ```
 - Les commentaires CodeRabbit sont **traités avant merge** (soit corrigés,
   soit explicitement justifiés en réponse au commentaire) — pas ignorés
@@ -96,13 +112,20 @@ visuel avec le mockup Claude Design si la PR touche l'UI.
 
 | Environnement | Base de données | Backend | App |
 |---|---|---|---|
-| **Local** | Ciblage direct de la branche staging Supabase (pas de Docker, §20.5) | `npm run dev` local | Expo Dev Build sur device physique |
-| **Staging** | Supabase branch dédiée | Render preview (déploiement auto sur push vers une branche `staging`) | Build EAS "internal" distribué via Play Internal Testing |
+| **Local** | Ciblage direct de la branche staging Supabase (pas de Docker, §20.5) — voir nuance ENV_SETUP §1.4 | `npm run dev` local | Expo Dev Build sur device physique |
+| **Test (CI, éphémère)** | Branche/projet Supabase de test dédié, **reseedée avant chaque run** (TESTING §3, `scripts/seed-test-db.ts`) — jamais la branche staging | GitHub Actions uniquement (`pr-checks.yml`, §1.1 étape 7) | — (pas de build app ; tests d'intégration backend uniquement) |
+| **Staging** | Supabase branch dédiée — **sert aussi de terrain aux 10 coachs beta réels** (Phase 7) : la CI ne doit JAMAIS exécuter de test dessus | Render preview (déploiement auto sur push vers une branche `staging`) | Build EAS "internal" distribué via Play Internal Testing |
 | **Production** | Supabase projet principal | Render production (Starter payant dès l'activation des webhooks PawaPay, §18.8) | .aab signé, Play Store production track |
+
+LYXO distingue donc **3 environnements Supabase** — dev/local, test-CI
+éphémère, staging (voir le détail et les variables dédiées dans
+ENV_SETUP.md §1.4 et §1.8).
 
 Migrations : appliquées d'abord en staging, vérifiées, puis appliquées
 en production via `supabase db push` sur le projet prod — jamais de
-migration testée directement en prod.
+migration testée directement en prod. Les migrations ne touchent JAMAIS
+l'environnement Test (CI) via ce chemin — celui-ci reçoit son schéma via
+le reseed dédié (TESTING §3), pas via le flux staging→prod.
 
 ---
 
@@ -124,10 +147,17 @@ la perte de clé, un classique qui tue des apps de solo devs).
 ### 3.3 Distribution beta (10 coachs)
 Play Console **Internal Testing track** (pas un APK envoyé par
 WhatsApp) : installation en un tap, mises à jour automatiques, liste
-d'emails testeurs gérée dans Play Console. Respecte au passage la
-**règle des 20 testeurs / 14 jours** pour les comptes développeur
-personnels récents (§Bloc G IMPLEMENTATION_PLAN) — la beta coachs (10
-coachs + leurs clients) atteint ce seuil naturellement.
+d'emails testeurs gérée dans Play Console.
+
+⚠️ **À vérifier avant Phase 7** : la **règle des 20 testeurs / 14 jours**
+pour les comptes développeur personnels récents concerne, à la
+connaissance actuelle, le canal **Closed Testing** — PAS Internal
+Testing (qui n'a pas cette contrainte de déblocage de la production
+track). Politique Google Play à reconfirmer au moment de Phase 7 (elle
+peut évoluer) : si confirmée, la distribution beta devra inclure un
+canal **Closed Testing** (en plus ou à la place d'Internal Testing) pour
+débloquer la promotion vers la Production track — voir ROADMAP.md
+tâche 7.8.
 
 ### 3.3bis Source maps & symbolication — OBLIGATOIRE à chaque build ET chaque OTA
 Sans ça, le KPI "crash-free ≥ 99,5%" est aveugle (stacktraces minifiées
@@ -165,7 +195,7 @@ CONVENTIONS.md et IMPLEMENTATION_PLAN). Le composant `UpdateChecker`
 | Lint + typecheck | PR (CI) |
 | Tests unitaires modules critiques | PR (CI) |
 | Tests d'intégration (si sync/auth/billing touché) | PR (CI) |
-| Format d'erreur API standard | CodeRabbit + revue humaine |
+| Format d'erreur API standard | CodeRabbit + revue humaine + tests unitaires (100% error-handler, TESTING §1.1) |
 | Zéro string UI hors i18next | CodeRabbit + DoD (CLAUDE.md §19.6 point 3) |
 | Test offline→sync en mode avion | DoD manuelle avant qu'une feature logger/sync soit "terminée" |
 | Test sur device bas de gamme ≤ 3 Go | DoD manuelle |

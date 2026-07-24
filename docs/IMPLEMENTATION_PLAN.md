@@ -50,8 +50,14 @@
   Bonus sessions : la doc NativeWind expose `nativewind.dev/llms.txt` et
   `llms-full.txt` — à donner à Claude Code en complément de Context7.
   i18next câblé AVANT le premier écran (règle 18.7), expo-router
-  (layout (tabs) à 5 onglets : Accueil · Log · Progrès ·
-  Discover[placeholder — voir note LYXO_UI_PROMPT nav] · Profil —
+  (layout (tabs) — nav réelle post-redesign 2026-07-24, PAS l'ancienne
+  liste 5 onglets Accueil/Log/Progrès/Discover/Profil : **Home · Log ·
+  Search · Performance · Shop** + bouton rond "Actions" (bottom-sheet,
+  pas un écran) ; Profil retiré de la tab bar, accessible via l'avatar
+  en haut à droite de Home (`href: null` sur la route "profile", masquée
+  de la barre sans être retirée du routeur) — détail exact et
+  justification produit : **LLD.md §6.1** (audit doc #15), source de
+  vérité pour toute nouvelle session touchant la nav —
   ⚠️ jamais react-navigation en direct, stack fermée CLAUDE.md §2).
 - Backend : Node/Express TypeScript sur Render, Prisma → Supabase Postgres,
   healthcheck, Sentry (app + backend) dès ce jour (§19.6).
@@ -74,10 +80,12 @@
     puis `/mcp` dans Claude Code → sélectionner resend → login OAuth.
     (Alternative plugin : `claude plugin install resend@claude-plugins-official`.)
     Le MCP couvre : envoi/templates/broadcasts/automations/webhooks/logs —
-    utile dès la Phase 3 (BILLING_FLOW §4.2) pour créer et tester les
-    templates d'emails trial J12/J14/J21 en langage naturel.
-  - ⚠️ Prérequis Resend AVANT le premier envoi réel (à faire en Phase 3,
-    pas maintenant) : créer l'API key + VÉRIFIER LE DOMAINE lyxo.app
+    utile dès la Phase 9 ROADMAP / post-MVP billing (BILLING_FLOW §4.2)
+    pour créer et tester les templates d'emails trial J12/J14/J21 en
+    langage naturel.
+  - ⚠️ Prérequis Resend AVANT le premier envoi réel (à faire en Phase 9
+    ROADMAP / post-MVP billing, pas maintenant) : créer l'API key +
+    VÉRIFIER LE DOMAINE lyxo.app
     (DNS SPF/DKIM) — sans domaine vérifié, les emails partent de
     onboarding@resend.dev et finissent en spam. L'adresse d'envoi cible :
     hello@lyxo.app ou pass@lyxo.app.
@@ -125,7 +133,7 @@
 
   **RÈGLE DE FERMETURE DE L'OUTILLAGE** : le stack outils est CLOS —
   Context7, Resend MCP, Maestro MCP, GitHub MCP, Supabase MCP, Sentry,
-  EAS (+ Phase 3 : Playwright, PostHog, uptime monitoring). Tout nouvel
+  EAS (+ Phase 9 ROADMAP / post-MVP billing : Playwright, PostHog, uptime monitoring). Tout nouvel
   outil découvert en route → IDEAS_BACKLOG.md, évalué ENTRE deux blocs,
   jamais installé à chaud. Écartés délibérément : Flutter (§19.12 CLAUDE.md
   — WatermelonDB, vélocité React, qualité Claude Code sur RN),
@@ -242,7 +250,7 @@ sync (DoD 8) en place.
   paramètres (Data Saver, "séances privées", opt-out rivalités 18.2).
 - Suppression de compte in-app + page web + export JSON gratuit (18.5, Q14).
 - Note : la page web compte/suppression rejoint la liste des 3 pages
-  couvertes par Playwright en Phase 3 (/pay, /invite, /account).
+  couvertes par Playwright en Phase 9 ROADMAP / post-MVP billing (/pay, /invite, /account).
 ✅ Sortie : profil complet, RLS privé vérifiées, suppression testée bout en bout.
 
 ---
@@ -327,11 +335,12 @@ programme assigné → séance suivie → coach voit l'écart.
 ---
 
 ## HORS MVP — RAPPEL DES PORTES FERMÉES
-Discover public (S13-S16) · billing (Phase 3, BILLING_FLOW.md prêt — ne
-créer AUCUNE table subscriptions/payments avant) · marketplace/wallet/payout
-(V2, §18.9) · messagerie · nutrition · iOS · EN.
+Discover public (S13-S16) · billing (Phase 9 ROADMAP / post-MVP billing,
+BILLING_FLOW.md prêt — ne créer AUCUNE table subscriptions/payments
+avant) · marketplace/wallet/payout (V2, §18.9) · messagerie · nutrition ·
+iOS · EN.
 
-## OUTILLAGE PHASE 3 (avec le billing, pas avant)
+## OUTILLAGE PHASE 9 ROADMAP / POST-MVP BILLING (avec le billing, pas avant)
 - Playwright : tests E2E des 3 pages web critiques — /pay (parcours token
   → plan → PawaPay simulé → confirmation + cas d'erreur token expiré/
   utilisé), /invite/{code} (fallback web → Play Store), /account

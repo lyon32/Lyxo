@@ -118,7 +118,12 @@ détaillée si besoin) → CONVENTIONS.md (comment l'écrire).
     sans passer par IDEAS_BACKLOG.md — même si l'idée est bonne.
 12. **Ne jamais coder Discover public, la messagerie in-app, ou la
     marketplace coach avant leur phase respective** (PROJECT_BRIEF
-    non-goals, ROADMAP Phase 8/10).
+    non-goals, ROADMAP Phase 8/10) — **sauf exception écrite et datée
+    de Lionel** : la messagerie liée au Gym Matching/Partners
+    (`conversations`/`messages` scopées au matching, pas une
+    messagerie générale) est autorisée dès la Phase 5bis (ROADMAP.md,
+    décision du 2026-07-24). Aucune autre messagerie in-app avant
+    Phase 8/10.
 
 ---
 

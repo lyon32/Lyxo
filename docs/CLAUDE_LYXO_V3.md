@@ -95,17 +95,17 @@ Fonctionnalités SUPPLÉMENTAIRES vs LYXO+ :
 1. Tableau de bord gestion clients illimités (le tier gratuit "Coach Découverte" = 3 clients max, 1 programme en vente, commission 20% — voir PRICING.md §3)
 2. Assignation de programmes à distance
 3. Suivi performances clients en temps réel (push dès fin de séance)
-4. Messagerie privée coach-client (audio, vidéo, texte)
+4. [V2] Messagerie privée coach-client (audio, vidéo, texte) — hors MVP V1, cf. §18.9/§19.4
 5. Stories éphémères FOMO (24h, copiables en 1 tap par les abonnés)
-6. Vente de programmes (prix libre, Lyxo prélève 15% → 10% au-delà de 100 000 FCFA de ventes brutes/mois)
-7. Dashboard revenus temps réel
+6. [V2] Vente de programmes (prix libre, Lyxo prélève 15% → 10% au-delà de 100 000 FCFA de ventes brutes/mois) — hors MVP V1, cf. §18.9/§19.4
+7. [V2] Dashboard revenus temps réel — hors MVP V1, cf. §18.9/§19.4
 
 Pricing officiel : voir PRICING.md §3 (source unique).
 Structure : Coach Découverte (gratuit, 3 clients, 1 programme, 20%) → Coach Pro
 (7 000 FCFA/mois · 25 000 FCFA/an · $11.99/$89.99 ; commission 15% → 10% ≥ 100k FCFA/mois).
 Pas de trial Coach Pro : le tier Découverte EST le trial.
 
-Tunnel de vente programmes coach (5 étapes) :
+[V2] Tunnel de vente programmes coach (5 étapes) — hors MVP V1, cf. §18.9/§19.4 :
 1. Coach crée le programme dans l'app
 2. Coach fixe son prix en FCFA ou EUR
 3. Lyxo génère lyxo.app/p/{id} — partageable WhatsApp/Instagram/TikTok
@@ -120,11 +120,11 @@ Tunnel de vente programmes coach (5 étapes) :
 
 | Couche | Choix imposé | Interdit |
 |---|---|---|
-| Framework mobile | React Native + Expo SDK 51+ | Flutter, Capacitor, Ionic |
+| Framework mobile | React Native + Expo SDK 57+ | Flutter, Capacitor, Ionic |
 | Navigation | Expo Router v3 (file-based) | React Navigation manuel |
 | State management | Zustand | Redux, MobX, Jotai, Context seul |
 | DB locale offline | WatermelonDB (SQLite) | AsyncStorage seul, MMKV seul, Realm |
-| Animations | React Native Reanimated 3 | Animated API native seule |
+| Animations | React Native Reanimated 4 (imposé par Expo SDK 57/New Arch — déviation tracée ROADMAP.md 1.1) | Animated API native seule |
 | Styling | NativeWind v4 (Tailwind RN) | StyleSheet pur, Tamagui, Restyle |
 | Charts | Victory Native XL | Recharts, react-native-chart-kit, Victory Mobile |
 | Backend runtime | Node.js 20 LTS + Express | Bun, Deno, Next.js API routes |
@@ -220,7 +220,11 @@ Le vert et le jaune/orange sont INTERDITS dans toute l'interface.
 ### Typographie
 - Police unique : Inter (Regular, Bold, Black)
 - Chiffres de stats : Inter Black 28-36px
-- Labels UI : Inter Regular 14-16px
+- Labels UI : Inter Regular 14-16px — **14px MINIMUM sans exception, y
+  compris les labels affichés sous un hero-number** (ex. stats 3 colonnes
+  du Profil, valeur + label sous un chiffre) : correctif #13, ces labels
+  étaient à 12px dans LYXO_UI_PROMPT.md, ce qui violait la règle "muted
+  jamais <14px" (STRICT RULE 18 de LYXO_UI_PROMPT.md)
 - Pas de serif, pas de script
 
 ### Principes UX non négociables
@@ -629,7 +633,10 @@ Ne pas les implémenter en Phase 1 même si techniquement tentant.
 
 V2 : Séance Fantôme, Bataille de ville, Jumeaux de progression,
      Saisons Lyxo, Programme communautaire, Empreinte de force,
-     Réseau de salles partenaires, Gym Matching (couplé à Ma Salle)
+     Réseau de salles partenaires, Ma Salle (affiliation de salle)
+     (⚠️ Gym Matching lui-même est sorti de cette liste — override daté
+     2026-07-24, avancé en V1, cf. §18 PRIORITÉ NIVEAU 2bis. Seule
+     l'affiliation "Ma Salle" reste V2.)
 
 V3 : Lyxo Radio, Récit automatique de progression, Mode salle partagée offline,
      Partage programme par SMS, Tempo tracker audio, Abonnement performance
@@ -667,11 +674,29 @@ PRIORITÉ NIVEAU 2 (planning officiel : §18.11 / ROADMAP.md Phases 5-6) — Soc
   → Stories Photo + Stats Overlay
   (⛔ Discover public Trending/Recent = Phase 8, jamais en MVP)
 
+PRIORITÉ NIVEAU 2bis (ROADMAP.md Phase 5bis, ⚠️ override daté 2026-07-24 —
+voir non-goal 3 PROJECT_BRIEF.md) — Gym Matching V1
+  → Swipe matching entre lifters compatibles (relation "Partners", distincte
+    du Follow) + chat in-app Partners avec dossier "Requests"
+  → Anciennement classé V2+/hors-roadmap ci-dessous ("Ma Salle" — affiliation
+    à une salle précise — reste V2+, seul le matching lui-même est avancé en V1)
+
 PRIORITÉ NIVEAU 3 (post-beta) — Scale & Paywall
   → Coach Mode V1 = Phase 6 du MVP (ROADMAP) ; marketplace = Phase 10
   → PawaPay/RevenueCat = Phase 9 (BILLING_FLOW.md)
-  → Nutrition (non-goal 8), Gym Matching & Ma Salle : V2+, hors roadmap
+  → Nutrition (non-goal 8) : V2+, hors roadmap
+  → Ma Salle (affiliation/profil de salle) : V2+, hors roadmap. Gym Matching
+    lui-même est sorti de cette ligne (voir PRIORITÉ NIVEAU 2bis ci-dessus).
 ```
+
+**Exception documentée — teaser "Coming soon" (correctif #54)** : le menu
+Actions (`components/ActionsSheet.tsx`) affiche "Nutrition" et "Google Fit"
+en grisé avec la mention "Coming soon". Ceci est une **exception UI
+assumée** au non-goal nutrition/steps ci-dessus — décision produit de
+Lionel, pas une contradiction ni un oubli : aucune implémentation, aucun
+code, aucune table nutrition/steps derrière ces entrées, uniquement un
+teaser visuel (grisé, non tappable) pour signaler une direction future
+sans engager de développement en V1.
 
 Règle d'or : Un tracker qui fonctionne parfaitement hors ligne retient les
 utilisateurs. Un réseau social buggé sans tracker solide provoque la désinstallation
@@ -804,9 +829,11 @@ create table public.payments (
     currency text check (currency in ('XAF','EUR','USD')),
     provider text check (provider in ('pawapay','revenuecat')),
     payment_method text check (payment_method in (
+        -- correctif #51 : reliquats Flutterwave/Stripe abandonnés retirés
+        -- (vodafone_cash, mpesa, paystack_card, stripe_card) — ne restent
+        -- que les méthodes réellement servies par PawaPay + le cas RevenueCat
         'mtn_momo','orange_money','wave','moov_money','free_money',
-        'vodafone_cash','airtel_money','mpesa','paystack_card',
-        'stripe_card','apple_pay','google_pay'
+        'airtel_money','apple_pay','google_pay'
     )),
     provider_tx_id text unique,       -- IDEMPOTENCE : ignore les doublons webhook
     status text default 'pending'
@@ -850,9 +877,9 @@ export function getSyncIndicator(
     case 'syncing':
       return { label: 'Synchronisation...', color: '#3A3F47', icon: 'cloud-sync' }; // acier — zéro violet (§12, §19.11)
     case 'offline_fresh':
-      return { label: 'Hors ligne (Cache récent)', color: '#888888', icon: 'cloud-offline' };
+      return { label: 'Hors ligne (Cache récent)', color: '#8E8781', icon: 'cloud-offline' }; // muted (Braise §19.11) — correctif #7, était #888888 hors palette
     case 'offline_stale':
-      return { label: 'Hors ligne (Flux non actualisé)', color: '#555555', icon: 'cloud-offline' };
+      return { label: 'Hors ligne (Flux non actualisé)', color: '#3A3F47', icon: 'cloud-offline' }; // acier (Braise §19.11) — correctif #7, était #555555 hors palette
   }
 }
 ```
@@ -1013,7 +1040,10 @@ comme étapes 1-2 (l'étape 2 = le Welcome 1ter) :
 - Anneau de couleur **#C73E3A (rouge braise)** fin sur les stories actives UNIQUEMENT (§19.11)
 - Anneau gris/absent sur les profils sans story active
 - ⛔ Réactions emojis sur stories et commentaires→DM : fonctionnalités V2
-  (la messagerie est non-goal 3 PROJECT_BRIEF — aucun DM en V1).
+  (la messagerie générale reste non-goal 3 PROJECT_BRIEF pour CE flux —
+  aucune conversion réaction/commentaire→DM en V1). Ne pas confondre avec
+  le chat Partners (Gym Matching, §18 PRIORITÉ NIVEAU 2bis) : celui-là est
+  un override V1 distinct et scopé, pas une réouverture générale des DM.
 
 ---
 
@@ -1874,7 +1904,8 @@ Toujours. Sans exception.
     "timeline_end_africa": "J14 — retour au gratuit, tes données restent intactes",
     "timeline_end_intl": "J14 — premier débit. Annulable à tout moment avant.",
     "no_payment_africa": "Aucun paiement demandé. À J14, retour au gratuit — tes données restent intactes.",
-    "start_cta_intl": "Commencer mon essai — 2 taps"
+    "start_cta_intl": "Commencer mon essai — 2 taps",
+    "start_cta_africa": "Commencer mes 14 jours gratuits"
   },
   "program_day": {
     "start_session": "Commencer la séance",
@@ -1973,7 +2004,8 @@ Toujours. Sans exception.
     "timeline_end_africa": "Day 14 — back to free, your data stays intact",
     "timeline_end_intl": "Day 14 — first charge. Cancel anytime before.",
     "no_payment_africa": "No payment required. On day 14 you go back to free — your data stays intact.",
-    "start_cta_intl": "Start my trial — 2 taps"
+    "start_cta_intl": "Start my trial — 2 taps",
+    "start_cta_africa": "Start my 14 days free"
   },
   "program_day": {
     "start_session": "Start session",
@@ -2292,8 +2324,10 @@ V1 monétise uniquement Lyxo+ (BILLING_FLOW.md). Architecture V2 actée :
   PR/heatmap, profils, follow, feed abonnés, stories, Conquête + Trace +
   Leaderboard amis (différenciateurs — restent), push, signalement,
   Data Saver, i18n, suppression de compte.
-- Phase 2 (S13-S16 → post-beta) : Discover public (trending, posts et
-  commentaires publics), puis nutrition, coach mode, paiements.
+- Phase 8 (S13-S16 → post-beta) : Discover public (trending, posts et
+  commentaires publics), puis nutrition, coach mode, paiements. (correctif
+  #58 — était numéroté "Phase 2" ici, incohérent avec le reste du document
+  qui appelle systématiquement Discover public "Phase 8", cf. §0/§1/§15.1.)
 - Justification : la beta = 10 coachs et leurs clients qui se
   connaissent déjà ; le feed abonnés suffit, un Discover vide dessert.
 - Recrutement des 10 coachs : commence en PARALLÈLE du code, dès S1.
@@ -2302,6 +2336,24 @@ V1 monétise uniquement Lyxo+ (BILLING_FLOW.md). Architecture V2 actée :
 - Les 16 semaines sont le scénario OPTIMISTE (MboaTV + études en
   parallèle). Ne pas compresser.
 
+**Plan de repli (correctif #47) — ordre de coupe si le planning 16
+semaines dérape**, du moins critique au plus critique (à couper EN
+PREMIER, en haut de liste, jusqu'à ce que le retard soit absorbé) :
+1. Gym Matching V1 (swipe + chat Partners, PRIORITÉ NIVEAU 2bis) — première
+   feature coupée, la moins liée au cœur produit
+2. Stories (24h, photo + stats overlay) — le feed abonnés seul suffit pour
+   la beta 10 coachs
+3. Fonctionnalités Coach Mode V1 avancées (au-delà du strict socle
+   "programme + assignation + suivi" — ex. Stories FOMO coach) — garder le
+   socle minimal, couper les raffinements
+4. Discover public et tout ce qui en dépend (déjà hors MVP S1-S12,
+   confirmation que ça ne remonte pas dans le planning en cas de retard)
+5. Leaderboard/Rivalités (Conquête + Trace) — coupé en tout dernier parmi
+   le "non-cœur", car différenciateur produit fort (hook n°1)
+**Non-négociable, jamais coupé** : Logger (saisie set <3s), Sync offline-
+first (WatermelonDB → Supabase), Follow + Feed abonnés (socle social
+minimal) — c'est le cœur Logger+Sync+Social de base, sans lui il n'y a pas
+de produit.
 
 ---
 

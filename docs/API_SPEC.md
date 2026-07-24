@@ -83,6 +83,14 @@ cette forme :
 | 500 | `INTERNAL_ERROR` | Erreur serveur — jamais de stack trace exposée au client, log Sentry côté serveur |
 | 503 | `PROVIDER_UNAVAILABLE` | PawaPay/RevenueCat/Resend down — le client doit retry avec backoff |
 
+> Deux codes SUCCÈS ne figurant pas dans ce tableau (ce n'est pas un
+> format d'erreur) mais faisant partie de la liste fermée §3 : `202`
+> (traitement asynchrone accepté, ex. `POST /v1/billing/pay-link`,
+> `DELETE /v1/profiles/me`) et `410` (ressource définitivement expirée/
+> consommée, ex. `GET /v1/pay/:token` sur un lien déjà utilisé ou
+> expiré). `410` porte quand même un body au FORMAT D'ERREUR STANDARD
+> ci-dessus (`PAY_LINK_EXPIRED`/`PAY_LINK_ALREADY_USED`).
+
 > Note `DUPLICATE_REQUEST` : sur les routes idempotentes (sync push,
 > checkout), un rejeu n'est PAS une erreur utilisateur — répondre 200
 > avec le résultat déjà connu plutôt qu'un 409 est souvent préférable ;
@@ -93,8 +101,20 @@ cette forme :
 
 ## 3. STATUS CODES UTILISÉS (liste fermée)
 
-`200` OK · `201` Created · `204` No Content (ex. DELETE réussi) ·
-`400` `401` `403` `404` `409` `422` `429` `500` `503` (voir tableau ci-dessus).
+`200` OK · `201` Created · `202` Accepted · `204` No Content (ex. DELETE
+réussi) · `400` `401` `403` `404` `409` `410` `422` `429` `500` `503`
+(voir tableau ci-dessus).
+- `202 Accepted` : la requête est valide et acceptée, mais son
+  traitement est ASYNCHRONE — la ressource n'est pas garantie créée/
+  modifiée au moment où la réponse part (ex. `POST /v1/billing/pay-link`
+  qui déclenche un envoi email en arrière-plan, `DELETE /v1/profiles/me`
+  dont le soft-delete réel est différé, `POST /v1/follows` sur un compte
+  privé qui crée une demande en attente). Jamais utilisé pour une
+  opération synchrone déjà effective — dans ce cas c'est `200`/`201`.
+- `410 Gone` : la ressource a existé mais est DÉFINITIVEMENT expirée ou
+  déjà consommée — pas juste absente (ce serait `404`). Usage unique
+  actuel : `GET /v1/pay/:token` sur un lien PawaPay déjà utilisé
+  (`PAY_LINK_ALREADY_USED`) ou expiré (`PAY_LINK_EXPIRED`), §4.5.
 Aucun autre code n'est utilisé dans l'API LYXO — pas de 3xx (pas de
 redirects API, les redirects HTTP restent l'affaire de la page web
 lyxo.app), pas de 418 ou autres codes exotiques.
@@ -124,6 +144,14 @@ Réponse 200 :
 `is_premium`/`premium_until` : champs **calculés** à chaque appel (§20.1
 — jamais lus depuis une colonne), dérivés de `subscriptions` +
 `trial_expires_at`. Pagination : le client boucle tant que `has_more`.
+
+Tables synchronisables via ce endpoint : toutes les tables `[SYNC]` de
+DATA_MODEL.md §2, **PLUS `exercises`** (audit doc #4) — référentiel en
+lecture seule côté client, mais rendu pull-able via sa colonne
+`updated_at` (DATA_MODEL.md §2.3) pour permettre une mise à jour
+incrémentale du catalogue (ex. bascule ExerciseDB Pro) sans obliger un
+redéploiement de l'app. `stories` n'est PAS dans cette liste — elle
+n'est pas synchronisée offline-first (DATA_MODEL.md §2.10).
 
 #### `POST /v1/sync/push`
 Auth requise. Body : `{ "changes": { "workouts": { "created": [...],
@@ -214,11 +242,19 @@ payload minimal, forfait data compté) :
 ```
 Rien d'autre ne voyage dans le feed — jamais de `gif_url`, jamais les
 sets détaillés (chargés à la demande au tap sur la card).
+⚠️ (audit doc #18) **Exclut TOUJOURS les workouts avec `is_private=true`,
+y compris pour les follows MUTUELS** — `is_private` est une intention
+explicite du poseur, elle prime sur tout statut de relation ; aucune
+exception "mutuel" ne la contourne.
 
 #### `GET /v1/leaderboard/:exercise_id`
 → classement entre follows mutuels uniquement, poids brut, PRs avec
 `is_social_eligible=true` seulement. Entrées inéligibles exclues (pas
 juste grisées — elles n'apparaissent PAS dans cette réponse).
+⚠️ (audit doc #18) **Exclut aussi tout PR rattaché à un `workout`
+`is_private=true`** — un record réalisé lors d'une séance privée
+n'apparaît jamais dans un leaderboard, même entre follows mutuels
+(même logique d'exclusion que `GET /v1/feed` ci-dessus).
 
 #### `POST /v1/stories` — multipart si `type=photo_overlay`
 → `201`, `expires_at` calculé serveur (+24h), jamais fourni par le client.
@@ -242,6 +278,18 @@ le coach est en tier Découverte et a déjà 3 clients actifs (PRICING §5).
 
 #### `POST /v1/programs` (coach) / `POST /v1/programs/:id/assign`
 Body assign : `{ "client_id": "uuid" }`.
+
+#### `GET /v1/programs` (ajouté, audit doc #21) — coach uniquement
+→ liste des programmes créés par le coach connecté (`coach_id = auth.uid()`),
+format compact (id, name, cycle_weeks, nombre de clients assignés).
+Pas de `client_id` en query en V1 — un client suit son programme assigné
+via `workouts.program_id`, pas via cette route (réservée au coach).
+
+#### `GET /v1/programs/:id` (ajouté, audit doc #21)
+→ détail complet d'un programme, `program_workouts` inclus (structure
+semaine/jour/exercices/cibles — DATA_MODEL.md §2.15). Autorisé pour le
+coach auteur (`coach_id = auth.uid()`) OU un client qui lui est assigné
+via `coach_clients` ; `403 FORBIDDEN` sinon.
 
 ---
 
@@ -305,6 +353,50 @@ kill switch inopérant (le canal malade transporte son propre antidote).
 Les flags CRITIQUES (`sync_enabled`, `billing_enabled`) sont donc AUSSI
 lus via cet endpoint trivial appelé au boot, indépendant du pipeline de
 sync. Les autres flags restent dans le payload de sync uniquement.
+
+---
+
+### 4.7 Gym Matching & Chat (ajouté, audit doc #14 — override V1 daté
+2026-07-24, voir LLD.md §6.8 / ROADMAP.md Phase 5bis pour la trace)
+
+#### `POST /v1/partners/swipes` — Body `{ "target_id": "uuid", "direction": "like"|"reject" }`
+→ `201`. Si `direction=like` ET un swipe inverse `(target_id, swiper_id,
+direction='like')` existe déjà → crée automatiquement une ligne
+`partners` (match mutuel, DATA_MODEL.md §2.20/§2.21) et la réponse porte
+en plus `{ "matched": true, "partner_id": "uuid" }`. `409 CONFLICT` si un
+swipe existe déjà pour cette paire (`swiper_id`,`target_id`) — pas
+re-swipable tant que non soft-deleted.
+
+#### `GET /v1/partners` — Query `?cursor=...`
+→ liste des matchs actifs (`partners`, non soft-deleted) du user
+connecté, format compact (`partner_id`, `username`, `avatar_initials`,
+`matched_at`).
+
+#### `POST /v1/conversations` — Body `{ "recipient_id": "uuid" }`
+→ `201` `{ "id", "status" }`. `status` = `'accepted'` d'emblée si
+`recipient_id` est un Partner matché de l'appelant, sinon `'pending'`
+(dossier "Requests", LLD.md §6.8) jusqu'à réponse du destinataire.
+`409 CONFLICT` si une conversation existe déjà pour cette paire (index
+unique sur la paire non ordonnée, DATA_MODEL.md §2.22).
+
+#### `GET /v1/conversations/:id/messages` — Query `?cursor=...`
+Auth requise, réservé aux deux membres de la conversation
+(`initiator_id`/`recipient_id` = `auth.uid()`, sinon `403 FORBIDDEN`).
+→ `{ "data": [ { "id", "sender_id", "body", "created_at" } ], "next_cursor": ... }`,
+triés par `created_at`.
+
+#### `POST /v1/conversations/:id/messages` — Body `{ "body": "..." }`
+→ `201`. `403 FORBIDDEN` si l'appelant n'est ni `initiator_id` ni
+`recipient_id`. Si la conversation est `status='pending'` et que
+l'expéditeur est le `recipient_id` (il répond) → la conversation passe
+à `'accepted'` (accord explicite, LLD.md §6.8).
+
+#### `POST /v1/physique-photos` — multipart (ajouté, audit doc #14, sur
+le modèle de `POST /v1/stories` §4.3)
+Menu Actions › Physique (LLD.md §6.5) — galerie de progression pure,
+aucun chiffre associé (poids/masse grasse restent des stat cards
+Performance). `taken_at` par défaut = `now()` côté serveur si non fourni.
+→ `201` `{ "id", "photo_url", "taken_at" }`.
 
 ---
 

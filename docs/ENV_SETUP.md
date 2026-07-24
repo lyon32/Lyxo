@@ -53,6 +53,30 @@
 | `NEXT_PUBLIC_API_URL` (ou équivalent selon le framework choisi) | URL du backend pour la page /pay |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Si la page a besoin de lire un profil public |
 
+### 1.4 Topologie Supabase — 3 environnements distincts (clarifie l'ambiguïté "local = staging ?")
+
+LYXO utilise **3 environnements Supabase séparés, jamais interchangeables** :
+
+| Environnement | Rôle | Qui la touche | Données |
+|---|---|---|---|
+| **Dev/local** | Développement quotidien (session Claude Code / machine locale) | Le dev, en continu | En l'absence de Docker local (§20.5/§19.9), cible aujourd'hui directement la branche staging — voir nuance ci-dessous |
+| **Test-CI (éphémère)** | Tests d'intégration automatisés (CICD §1.1 étape "tests d'intégration") | GitHub Actions uniquement, jamais déclenchée manuellement | **Reseedée avant CHAQUE run** (`scripts/seed-test-db.ts`, TESTING §3) — base jetable, aucun état ne s'accumule entre deux exécutions |
+| **Staging** | Sert aussi de terrain aux **10 coachs beta réels** (Phase 7) — PAS un environnement jetable | Alimentée par les migrations sur merge `main` (CICD §1.4/§2) | Données réelles des beta testeurs — **la CI ne doit JAMAIS exécuter de test dessus** (risque de pollution/perte de données réelles) |
+
+> ⚠️ Nuance dev/local : tant que le dev cible directement la branche
+> staging faute de Docker local (§2.4 ci-dessous), l'environnement "Dev/
+> local" et l'environnement "Staging" partagent aujourd'hui la même base.
+> Ce n'est PAS un problème tant que Staging ne sert qu'au dev — ça le
+> devient dès que les 10 coachs beta sont dessus (Phase 7) : à ce moment,
+> séparer une branche Supabase dev dédiée devient nécessaire pour ne plus
+> jamais écrire de code expérimental contre les données des coachs réels.
+> Décision à formaliser avant Phase 7 si ce n'est pas déjà fait.
+
+Variables dédiées à l'environnement Test-CI (distinctes des variables
+staging/prod existantes de §1.2) : `SUPABASE_TEST_URL`,
+`SUPABASE_TEST_SERVICE_ROLE_KEY`, `DATABASE_TEST_URL` — voir §1.8 CI/CD
+ci-dessous pour le détail et leur usage exact.
+
 ### 1.5 Environnements par profil de build (ajout audit deep-tech)
 Les variables `EXPO_PUBLIC_*` sont inlinées AU BUILD — chaque profil EAS
 porte donc SON jeu de valeurs dans `eas.json` (`build.<profile>.env`) :
@@ -68,21 +92,41 @@ porte donc SON jeu de valeurs dans `eas.json` (`build.<profile>.env`) :
   pollue jamais le crash-free de prod ; un event de test ne pollue
   jamais les funnels de décision beta.
 
-### 1.6 Incident "clé fuitée" — procédure de rotation (à exécuter sous 1h)
+### 1.6 Secrets EAS
+| Secret | Propos |
+|---|---|
+| `SENTRY_AUTH_TOKEN` | **Obligatoire** pour l'upload automatique des source maps JS et du `mapping.txt` ProGuard à CHAQUE `eas build` ET CHAQUE `eas update` (CICD §3.3bis) — sans lui, les crashes natifs/JS post-build sont illisibles dans Sentry. Configuré côté EAS (`eas secret:create` ou dashboard expo.dev > Project > Secrets), jamais dans un `.env` committé. |
+
+Procédure de rotation (même urgence que §1.7 en cas de fuite) :
+1. Révoquer l'ancien token dans Sentry (Organization Settings > Auth Tokens).
+2. Générer un nouveau token avec le scope minimal requis (`project:releases`).
+3. Mettre à jour le secret EAS : `eas secret:create --name SENTRY_AUTH_TOKEN --value <nouveau> --force`.
+4. Vérifier sur le prochain build/OTA que l'upload des source maps réussit
+   (log du plugin Sentry dans les logs EAS) avant de considérer la
+   rotation terminée — un token invalide échoue silencieusement l'upload
+   sans faire échouer le build lui-même (CICD §3.3bis).
+
+### 1.7 Incident "clé fuitée" — procédure de rotation (à exécuter sous 1h)
 | Secret fuité | Rotation | Impact/ordre |
 |---|---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | Régénérer dans Supabase Dashboard | Invalide l'ancienne IMMÉDIATEMENT → mettre à jour Render et redéployer dans la foulée (sinon backend down) |
 | `SUPABASE_JWT_SECRET` | Rotation Supabase | Invalide toutes les sessions → users re-login (acceptable, prévenir si possible) |
 | `PAWAPAY_API_TOKEN_*` | Révoquer + régénérer dans le Dashboard PawaPay | Mettre à jour Render AVANT le prochain paiement |
 | `ADMIN_API_KEY` / `REVENUECAT_WEBHOOK_SECRET` / `RESEND_API_KEY` | Régénérer côté service | Render env + redeploy |
+| `SENTRY_AUTH_TOKEN` | Voir procédure dédiée §1.6 | Secret EAS, pas Render |
 Prévention : `gitleaks` en pre-commit (une ligne dans le hook husky déjà
-prévu, CONVENTIONS §2) — aucun secret ne part dans un commit.
+prévu, CONVENTIONS §2) **+ gitleaks côté CI serveur** (CICD §1.1) — le
+hook local reste contournable (`--no-verify`), la CI est la vraie
+ligne de défense — aucun secret ne part dans un commit ou une PR.
 
-### 1.4 CI/CD (secrets GitHub Actions, jamais dans un fichier .env)
+### 1.8 CI/CD (secrets GitHub Actions, jamais dans un fichier .env)
 | Secret | Propos |
 |---|---|
 | `EXPO_TOKEN` | Auth EAS depuis la CI |
 | `CODECOV_TOKEN` (si utilisé plus tard) | Coverage reporting |
+| `SUPABASE_TEST_URL` | URL du projet/branche Supabase de **test** (éphémère, reseedée avant chaque run — §1.4) — utilisée par le gate CI "tests d'intégration" (CICD §1.1), jamais la branche staging |
+| `SUPABASE_TEST_SERVICE_ROLE_KEY` | Clé service du Supabase de test — permet au job CI d'insérer/nettoyer les fixtures d'intégration (TESTING §3), strictement distincte de la clé staging/prod |
+| `DATABASE_TEST_URL` | Connexion Postgres directe au Supabase de test, utilisée par `scripts/seed-test-db.ts` (TESTING §3) pour reseeder avant chaque run |
 
 ---
 

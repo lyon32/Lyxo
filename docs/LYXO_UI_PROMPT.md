@@ -87,12 +87,17 @@ The app helps users:
 - Inter (or SF Pro style), sentence case EVERYWHERE
 - FORBIDDEN: ALL-CAPS letterspaced labels, developer notation ("PROGRAM.HYPERTROPHY"), technical badges ("WEBP-OPTIMIZED")
 - NO human faces anywhere: avatars are bone-white INITIALS on #1E1B1A circles with a thin steel-gray ring (LX monogram as default avatar fallback)
-- Values always bigger than their labels: 82,5 kg in Inter Black 36px+, label 12px below
+- Values always bigger than their labels: 82,5 kg in Inter Black 36px+, label 14px below (correctif audit docs #13 — 12px violait la règle "muted jamais <14px" ; 14px minimum partout pour tout label sous un hero-number)
 - French UI, French number formats: 3 500 · 15 000 · 82,5 kg (comma decimal, space thousands)
 - Only English words allowed: "LYXO" wordmark, "Log", "Discover", "RPE"
 
 ## Navigation (identical on every screen, sentence case)
-Accueil · Log · Progrès · Discover · Profil
+~~Accueil · Log · Progrès · Discover · Profil~~ — **SUPERSEDED 2026-07-24**
+par le redesign référence (§Redesign additif ci-dessous) : pilule flottante
+Home/Search/Performance/Social + bouton rond Actions séparé, Profil retiré
+de la tab bar (accessible via l'avatar du Home). Le texte original (Discover
+jamais un écran mort en MVP) reste vrai en esprit — Search hérite de la même
+contrainte tant que Feed/Discover n'ont pas de contenu réel.
 > ⚠️ Discover pendant le MVP (Phases 1-7) : l'onglet ne doit JAMAIS être
 > un écran mort (guidelines Material/Apple 4.2 — risque de rejet
 > "fonctionnalité inachevée"). Deux options actées : (a) masquer l'onglet
@@ -100,6 +105,76 @@ Accueil · Log · Progrès · Discover · Profil
 > à contenu réel : les programmes des 10 coachs beta (cohérent avec
 > "Discover non-vide au jour 1", PROJECT_BRIEF §3). Décision à trancher
 > au Bloc A3 — jamais un écran vide.
+> **CORRECTIF audit docs 2026-07-24 (#11/#12/#53)** : le redesign additif
+> ci-dessous avait fait disparaître Feed/Stories/Leaderboard de toute nav
+> visible — corrigé en ajoutant un **5e onglet "Social"** (regroupe Feed
+> abonnés, Stories, Leaderboard/Rivalités — écrans 9/10/11) à la pilule
+> flottante. **Search** est une bibliothèque/recherche d'exercices — PAS un
+> Discover social (voir écran 4ter ci-dessous). **Shop** (catalogue
+> marketplace coach, V2) est retiré de la tab bar V1 — voir §Redesign
+> additif. **Profil accessible uniquement via l'avatar du Home, choix
+> assumé** : le Profil n'est pas une destination à fréquence comparable à
+> Home/Search/Performance/Social — lui dédier un onglet diluerait la barre
+> pour un usage rare ; l'avatar reste visible et prévisible en 1 tap sur
+> Home, cohérent avec la "brutal simplicity" du système (peu d'onglets,
+> chacun à forte fréquence). Décision produit de Lionel, pas un oubli.
+
+## Redesign additif — brainstorm référence Hevy-like (2026-07-24)
+
+> Lionel a fourni un document de référence structurel complet (26
+> captures + un brief écrit "RÉFÉRENCE DESIGN") pour un restyle façon
+> Hevy. Règle non négociable répétée par Lionel lui-même dans ce brief :
+> **ne jamais reproduire les couleurs des refs (clair/noir/blanc/gris)** —
+> palette Braise uniquement, dark mode permanent. Ce qui suit sont les
+> patterns confirmés et déjà implémentés sur le Home ; le reste (18
+> écrans du brief) reste à construire progressivement, pas en un seul
+> passage — voir ROADMAP.md 4.8-4.13 / Phase 5bis / IDEAS_BACKLOG.md pour
+> ce qui est encore ouvert.
+
+**Tab bar flottante** (implémentée, `app/(tabs)/_layout.tsx`) : pilule
+`rounded-full` fond `steel/80`. **Correctif audit docs 2026-07-24
+(#11/#12/#48)** : 4 icônes actives en V1 — LayoutGrid=Home, Search,
+ChartColumn=Performance, **Users=Social** (5e onglet ajouté — regroupe Feed
+abonnés/Stories/Leaderboard, écrans 9/10/11, qui étaient devenus
+invisibles depuis la nav) — actif = icône ember + highlight `bg-ember/20`
+derrière **+ un label texte (14px, bone-white) affiché UNIQUEMENT sous
+l'icône active** ; les onglets inactifs restent icône seule, gris
+`#8E8781`, sans label. `ShoppingBag=Shop` est **retiré de la tab bar V1** —
+🔵 **V2, pas encore actif** (catalogue marketplace coach, voir "Écart non
+résolu" ci-dessous et la règle "jamais de marketplace avant sa phase") ; il
+ne réapparaît que lorsque le marketplace coach est scopé. Bouton rond
+séparé à droite (même style `steel/80`) pour "Actions" (`Ellipsis`), ouvre
+`components/ActionsSheet.tsx` (bottom-sheet) au lieu de naviguer.
+
+**Cards** : fond `steel` (pas `card`), bordure `ember/25` fine,
+`rounded-2xl`. Appliqué sur le bandeau conseil + la card CTA du Home.
+
+**CTA rond (type flèche Start Workout)** : fond `ember` plein, icône
+bone-white — pas de fond blanc/fg comme un premier essai l'avait fait par
+erreur (confondu avec l'inversion du thème clair de la ref).
+
+**Avatars** : confirmé conforme à la règle déjà écrite plus haut (Design
+Style) — initiale bone-white sur fond `input`/`steel`, jamais un pictogramme
+générique. `app/(tabs)/index.tsx` lit `user_metadata.username`/email via
+`supabase.auth.getUser()` en l'absence de store profil client dédié.
+
+**États vides** : titre bold + description grise, **centrés verticalement**
+(pas alignés à gauche comme une première passe l'avait fait — corrigé sur
+`app/notifications.tsx`/`app/messages.tsx`).
+
+**⚠️ Écart non résolu avec ROADMAP.md 4.11** : le brief liste pour le menu
+Actions "Routines, Exercices, Physique, Import, Feedback, Connexion Google
+Fit, Suivi nutritionnel" (corrigé 2026-07-24, décision #54 : "Apple Health"
+→ "Google Fit" — l'app cible Android en priorité pour le MVP V1, Apple
+Health n'a aucun sens sur cette plateforme) — la liste COMPLÈTE de la
+référence originale. Mais ROADMAP.md 4.11 (décision du même jour,
+brainstorm précédent) a explicitement retiré **Routines** (fusionné dans
+"Programs", v2) et **Import** (abandonné, aucune version).
+`components/ActionsSheet.tsx` suit ROADMAP 4.11, pas ce brief — Exercises
+actif, Physique/Feedback/Google Fit/Nutrition/Programs grisés "Coming
+soon" — **teaser UI assumé, aucune implémentation** (raisonnement produit
+documenté dans CLAUDE_LYXO_V3.md §15.1). À trancher avec Lionel si ce
+brief doit faire revenir Routines/Import.
 
 ## Screens
 
@@ -151,6 +226,13 @@ signup email : l'OAuth ne transporte pas raw_user_meta_data).
 - **Progress gauge NEVER at 0%** (goal gradient): la jauge démarre avec
   la première étape déjà cochée — **3 étapes visibles au total**
   (Objectif → Split → Compte) : "Étape 1/3 ✓" dès l'écran Objectif
+- **Justification produit (correctif audit docs #62)** : afficher "Étape
+  1/3 ✓" dès l'écran Objectif, avant que l'étape suivante soit réellement
+  franchie, est un choix ASSUMÉ de goal-gradient effect (montrer une
+  progression déjà entamée motive à finir la séquence pré-auth) — ce n'est
+  PAS une tromperie ni un oubli de design, c'est documenté ici
+  explicitement pour lever toute ambiguïté future ; le design reste tel
+  quel.
 - Progress dots, single ember CTA "Continuer"
 
 ### 2bis. Onboarding POST-auth (trou de spec comblé — fiche 15/18 comité)
@@ -162,7 +244,10 @@ ne la réaffiche à 0). Continuité visuelle simple (même style de card),
 transition directe vers l'écran suivant :
 - Country selector + weight unit selector (kg pre-selected · lbs) —
   alimente `billing_region` (calculé serveur, §19.1) et `weight_unit`
-- Data Saver proposal card ("Économiser tes données ?")
+- Data Saver proposal card ("Économiser tes données ?") — **affichée
+  UNIQUEMENT si `billing_region = africa_momo`** (calculé sur cet écran,
+  §19.1) ; masquée pour les autres régions (Data Saver reste accessible
+  manuellement dans Paramètres pour tout le monde, écran 15)
 - History rule announcement: "Ton historique complet est conservé pour toujours. L'affichage gratuit couvre les 90 derniers jours."
 - Pseudo field with suggestion hints (si pas déjà saisi à l'écran 3)
 - Single ember CTA "Continuer" → Accueil
@@ -263,8 +348,31 @@ Small focused screen — one screen does one thing:
   muted context line ("Jour prévu : Push") — never a blank screen
 - No CTA on past days (history is consultation, not action)
 
+### 4ter. Search (bibliothèque d'exercices — PAS un Discover social)
+- **Nature de l'écran (correctif audit docs #12)** : recherche/bibliothèque
+  d'exercices (pack ExerciseDB embarqué + à la demande, §19.5) — PAS un flux
+  social façon Discover. Aucun lien avec l'onglet "Social" (Feed/Stories/
+  Leaderboard, voir §Redesign additif) malgré la proximité de position dans
+  la tab bar.
+- Sticky search field en haut (debounce), chips de filtre muscle/équipement
+  en steel gray juste en dessous, exercices récents affichés en premier
+- Liste d'exercices : thumbnail GIF 40px, nom, groupe musculaire — tap ouvre
+  le détail (`ExerciseDetailModal`)
+- **État vide** (aucune recherche saisie, ou aucun résultat) : suggestion
+  ("Essaie 'développé'") + CTA "Créer cet exercice" — jamais un écran blanc
+  (cohérent avec STRICT RULE 15)
+- **État chargement** : skeleton silhouettes #141414 (grille identique à la
+  forme finale), jamais un spinner générique
+- **État erreur** (échec réseau sur le pack à la demande — le pack embarqué
+  ~50 GIFs reste utilisable offline) : message muted + bouton "Réessayer"
+
 ### 5. Workout Logger (THE critical screen)
-- Header: exercise name + "Série 3/5" (position in EXERCISE), recording dot, chrono, "Synchronisé ✓"
+- Header: exercise name + "Série 3/5" (position in EXERCISE), recording dot, chrono,
+  **sync indicator branché sur `getSyncIndicator` (CLAUDE_LYXO_V3.md §15.3, correctif
+  #8) — jamais un texte figé indépendant de l'état réel**, 4 variantes exactes :
+  "Synchronisé" (icône cloud-check, acier #3A3F47) · "Synchronisation..." (cloud-sync,
+  acier #3A3F47) · "Hors ligne (Cache récent)" (cloud-offline, muted #8E8781) ·
+  "Hors ligne (Flux non actualisé)" (cloud-offline, acier #3A3F47)
 - **Session ring** (right side of header, 24 px): ember arc on steel
   track, "12/18" sets at center — position in the SESSION, readable in
   peripheral vision. Micro-interaction: the arc increments with a slight
@@ -274,6 +382,9 @@ Small focused screen — one screen does one thing:
 - **PR proximity micro-line** under the weight block (when relevant):
   "PR : 100 kg — à 2,5 kg" in muted #8E8781 ; the delta turns ember ONLY
   if the entered set beats it (goal gradient, single number never a range)
+  — **correctif #49** : quand le delta bascule en ember, il respecte le
+  plancher de taille STRICT RULE 18 (≥18,7px gras ou ≥24px normal), jamais
+  plus petit sur fond sombre
 - **Swipe up/down on the weight block = ±2,5 kg** (±2.5/±5 lbs in lbs
   mode) — in addition to steppers
 - Custom sticky number keyboard, unit-aware steppers at 56px minimum (±2,5 kg in kg mode; ±2.5/±5 lbs in lbs mode)
@@ -284,7 +395,10 @@ Small focused screen — one screen does one thing:
   série" (ember) and "Terminer la séance" (sticky bottom, thumb zone)
   exist; nav reappears on session end
 - **Long-press on a past set row** = secondary actions (modifier /
-  supprimer) with background blur — mobile right-click, zero UI clutter
+  supprimer) with background blur — mobile right-click, zero UI clutter.
+  **Correctif #63** : chaque ligne de série porte aussi un indice visuel
+  discret (petite icône "..." steel gray en bout de ligne) — le long-press
+  seul n'est pas découvrable, l'icône signale l'affordance sans l'imposer
 - Ember CTA "Valider la série" (only ember element), done sets marked with bone-white checks on steel gray
 - Session history list below, "Terminer la séance" with flag icon
 - Micro-confirmation toast: "Enregistré sur ton téléphone ✓" ; rest
@@ -304,6 +418,13 @@ Transporter, pas informer. One scroll direction, zero double-nested cards:
 - Giant countdown readable at 2 meters, progress ring in ember on steel-gray track, BEHIND digits at 30% opacity (ring drains with time)
 - ±15 s buttons, "Passer le repos" — all values bone white, never neon
 - "Prochaine série" preloaded card: next exercise, target "82,5 kg × 8"
+- **Comportement arrière-plan / écran verrouillé (correctif #56)** : le
+  minuteur persiste via un **timestamp de fin stocké** (`rest_ends_at`),
+  jamais un simple `setInterval` qui s'arrête en background — countdown et
+  ring se recalculent depuis ce timestamp au retour au premier plan. Une
+  **notification locale** (Expo Notifications) se déclenche à la fin du
+  repos même app fermée/écran verrouillé, pour ne jamais perdre le timing
+  entre deux séries
 
 ### 7. PR Celebration
 - Ember badge "Record de force", the shareable PR card AS the visual: #151312 card with 1px #2C2826 border, "Développé couché", 105 kg in Inter Black 64px bone white, "+5 kg" in ember, date, LYXO wordmark
@@ -312,6 +433,10 @@ Transporter, pas informer. One scroll direction, zero double-nested cards:
 
 ### 8. Progrès (reference screen)
 - Ember 1RM trend line on steel-gray grid, segmented control (active segment: bone-white text on #3A3F47 pill) "Mois · Trimestre · Année · Tout"
+- **Segmented control en compte gratuit (correctif #52)** : "Mois" et
+  "Trimestre" seuls actifs ; "Année" et "Tout" restent VISIBLES mais
+  grisés avec un petit badge Lyxo+ — tap ouvre le paywall plutôt que de
+  changer de segment (cohérent avec "gratuit = 90 derniers jours max")
 - **1RM estimé = ONE number, never a range**: "1RM est. 112,5 kg" —
   jamais "110-115" (a range = mental negotiation = hesitation)
 - Personal records list with ember deltas
@@ -320,7 +445,10 @@ Transporter, pas informer. One scroll direction, zero double-nested cards:
   record trend
 - Consistency heatmap: 4 opacities of #C73E3A, kg units — **with a
   4-level legend** ("moins → plus", 4 ember opacity swatches, off cells
-  #1E1B1A)
+  #1E1B1A). **Correctif #73** : tap ou long-press sur une cellule ouvre un
+  tooltip/popover avec la valeur numérique exacte (kg de ce jour-là) — la
+  légende par opacité reste globale/indicative, l'accès exact par cellule
+  est le complément accessibilité
 - **Current streak as a specific number**: "3 semaines consécutives"
   (specificity is trust — never "belle régularité !")
 - Free-tier boundary: sessions older than 90 days shown locked with soft Lyxo+ hint (verrou + hint, jamais un mur)
@@ -340,7 +468,7 @@ Transporter, pas informer. One scroll direction, zero double-nested cards:
 
 ### 12. Profil
 - Avatar = bone-white initials on #1E1B1A circle with 1px steel-gray ring, verified badge in steel gray, neutral bio (no city/region markers)
-- Stats in 3-column grid: values Inter Black 28px, labels 12px below
+- Stats in 3-column grid: values Inter Black 28px, labels 14px below (correctif #13)
 - Ember heatmap (same style as Progrès), tabs, private account lock state
 - "(90 derniers jours) · Offre gratuite" subtle freemium reminder
 - Ember allowed here only on "Récupérer mon titre" if it is the sole ember CTA — this is the screen where the palette earns its name
@@ -392,6 +520,12 @@ actual view of screen 14 — same semantics, same code).
 - "Lyxo+" benefits list in French: "Historique illimité", "Progression automatique", "Programmes de coachs"
 - Prices: "Pass Mensuel — 3 500 FCFA / mois" · "Pass Annuel — 15 000 FCFA / an" with badge "Meilleure valeur" (ember)
 - CTA "Commencer mes 14 jours gratuits" (trial — the single ember button)
+  — **contrainte de longueur testée sur 360dp (correctif #72)** : le
+  libellé complet doit tenir en une ligne sur cette largeur d'écran de
+  référence (Android bas de gamme, Tecno Spark/Samsung A15) ; si le device
+  est plus étroit ou la police système agrandie, **wrap sur 2 lignes
+  autorisé** — jamais de troncature avec "…", jamais de réduction de police
+  en dessous de 14px
 - **Trial transparency sub-text (under the CTA)**: "Aucun paiement
   demandé. À J14, retour au gratuit — tes données restent intactes."
   (addresses the "paiement sans reçu" distrust of the Massa persona —
@@ -416,10 +550,18 @@ The "safety net, not sales pitch" paywall (winning A/B pattern):
 - Price anchoring: **Annual plan FIRST in the layout** (34,99 € — "Soit
   2,92 €/mois", badge "Meilleure valeur" ember), monthly as secondary
   TEXT option below ("Ou le mensuel à 4,99 €/mois")
+- **Formatage du prix selon la langue (correctif #76)**, indépendant de la
+  région de facturation (même logique que kg/lbs, §19.15 — locale et unité
+  découplées) : FR → "34,99 €" (virgule décimale, symbole après un espace
+  insécable) ; EN → "€34.99" (point décimal, symbole avant, pas d'espace).
+  Le montant numérique est identique, seul le format suit la langue choisie
+  à l'onboarding (écran 1bis)
 - Single ember CTA: "Commencer mon essai — 2 taps" (start verb + "mon"
   possessive + numeric specificity ; never "S'abonner" as primary label)
-- Discreet muted links (required): "Restaurer les achats" · "Annuler mon
-  abonnement" (Paramètres link)
+- Links (required) — **correctif #77** : "Restaurer les achats" en style
+  **bone-white #F5F1EC**, plus visible qu'un lien muted discret
+  (conformité App Store Review 3.1.1 — doit être facilement repérable) ·
+  "Annuler mon abonnement" reste un lien muted discret (Paramètres link)
 - Benefits list SHORT and only features live at this date (never a V2
   feature on the paywall)
 
@@ -431,7 +573,10 @@ STRICT RULES — NEVER BREAK:
    formats. (In the real app the user picks FR/EN at signup — mockups
    are generated in French, the launch-market default.)
 2. Sentence case everywhere · no ALL-CAPS letterspacing (except wordmark)
-3. Identical nav on all screens: Accueil · Log · Progrès · Discover · Profil
+3. Identical nav on all screens: floating pill Home · Search · Performance ·
+   Social + separate round Actions button (correctif #11/#12/#48 — see
+   §Redesign additif) — Profil via the Home avatar only, Shop is 🔵 V2 and
+   out of the V1 tab bar
 4. Ember red #C73E3A: max 1 CTA button + 1 badge per screen · secondary
    structure in steel gray #3A3F47 · everything else bone white — the
    ember must stay MATTE, never fluorescent
@@ -445,7 +590,9 @@ STRICT RULES — NEVER BREAK:
    cosmic decor, no anatomy art, no technical badges — visuals are data
    cards: big Inter Black numbers
 7. No developer notation in labels · no payment brands/logos anywhere in-app
-8. Tap targets ≥ 56px for in-workout controls
+8. Tap targets: **≥44px floor across the whole app** (chips, pills, nav
+   icons, settings rows — correctif #74) · **≥56px specifically for
+   in-workout controls** (the higher in-session floor stays, shaky hands)
 9. Values always larger than labels · max information density ~60%,
    generous negative space
 10. Only these neutrals: #0B0A0A background, #151312 cards, #1E1B1A inputs,
@@ -468,16 +615,26 @@ STRICT RULES — NEVER BREAK:
     of the final card in #141414 animated — never a generic spinner
 16. Assumed ANTI-patterns (never debate again): no full-ember hero card
     (Inter Black typography IS the hierarchy), no floating FAB (conflicts
-    with 1-ember-CTA rule — the Log tab may only be slightly larger/
-    bolder), no photo/video hero INSIDE the app (data is the hero —
-    exception: real-photo hero on pre-auth entry screens per the PHOTO
-    HERO EXCEPTION, AI photos banned everywhere), no cardio/calories/
-    water/steps metrics (non-goal 1), no smartwatch (non-goal 14), no
-    artificial countdowns or guilt-tripping dismiss buttons ("I'll risk
-    it") — loss-aversion lives ONLY in Conquête/Trace
+    with 1-ember-CTA rule) — **NAMED EXCEPTION (correctif #50)**: the
+    single round ember CTA (type "Commencer la séance", Home — see
+    §Redesign additif "CTA rond") is NOT a FAB — it IS the screen's one
+    ember CTA, maximum ONE per screen; a generic/secondary floating FAB
+    ADDED ON TOP of this main CTA remains forbidden. Also: no photo/video
+    hero INSIDE the app (data is the hero — exception: real-photo hero on
+    pre-auth entry screens per the PHOTO HERO EXCEPTION, AI photos banned
+    everywhere), no cardio/calories/water/steps metrics (non-goal 1), no
+    smartwatch (non-goal 14), no artificial countdowns or guilt-tripping
+    dismiss buttons ("I'll risk it") — loss-aversion lives ONLY in
+    Conquête/Trace
 17. Trial screens always show the 3-step transparency timeline
     (Aujourd'hui / J12 rappel / J14 fin) — steel line, ember dots;
     annual price always laid out BEFORE monthly (anchoring)
-18. Accessibility floor: muted text #8E8781 is ~4.6:1 on cards #151312
-    (AA borderline) — muted text is NEVER smaller than 14 px; below
-    14 px, use bone white #F5F1EC only
+18. Accessibility floor: muted text #8E8781 is **~5,2–5,6:1 depending on
+    the background** (#0B0A0A/#151312/#1E1B1A) — comfortably above the
+    4,5:1 AA threshold (recalculated, correctif #79 — corrects the earlier
+    "~4.6:1 AA borderline" estimate) — muted text is NEVER smaller than
+    14 px; below 14 px, use bone white #F5F1EC only. **Ember text**
+    (#C73E3A) has weaker contrast on dark backgrounds: any ember-colored
+    text must be **≥18,7px bold OR ≥24px regular** (correctif #49 — the
+    threshold where required AA contrast drops to 3:1, WCAG large-text),
+    never smaller (e.g. the PR proximity micro-line, screen 5)

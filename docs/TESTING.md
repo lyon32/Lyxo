@@ -34,7 +34,7 @@ E2E            → parcours critiques bout en bout, budget FAIBLE et ciblé
 | `lib/sync/conflict-resolution.ts` | Bug ici = perte de données silencieuse, le pire scénario du projet | LWW simple, égalité de timestamp, suppression qui doit gagner sur une modif plus ancienne |
 | `lib/units.ts` | Erreur de conversion = mauvaise donnée affichée à vie si mal stockée | kg→lbs arrondis, formats FR/EN, steppers par unité, jamais de dérive kg stocké |
 | `lib/billing-region.ts` | Détermine tout le parcours de paiement d'un user | pays déclaré prioritaire, IP discordante loggée pas décisive, région invalide/inconnue |
-| `services/pawapay.service.ts` (idempotence webhook) | Un double traitement = double facturation ou incohérence subscriptions | Callback rejoué, callback avec depositId inconnu, montant/devise incohérents |
+| `services/pawapay.service.ts` (idempotence webhook) (Phase 9 uniquement) | Un double traitement = double facturation ou incohérence subscriptions | Callback rejoué, callback avec depositId inconnu, montant/devise incohérents |
 | `middlewares/error-handler.middleware.ts` | Le format d'erreur DOIT être invariant (API_SPEC §2) | Chaque type d'AppError produit exactement la forme attendue |
 | Config des limites freemium (90j, 5 exercices custom, 3 clients Découverte) | Un seuil mal appliqué = soit on brade Lyxo+, soit on frustre un gratuit | Pile à la limite, un de plus, un de moins |
 
@@ -49,7 +49,7 @@ chiffre).
 |---|---|
 | `/v1/sync/pull` + `/v1/sync/push` (backend, DB de test réelle) | Un cycle complet create→push→pull sur un 2e "appareil" simulé retrouve les mêmes données ; pagination `has_more` correcte sur > 500 rows ; `deleted_at` bien propagé, jamais de DELETE physique |
 | RLS Supabase (comptes privés) | Un user A ne peut PAS lire les données d'un user B privé non-follow ; peut après follow approuvé |
-| Webhook PawaPay → activation subscription | Callback COMPLETE valide → subscription passe active ET is_premium dérivé répond true à l'appel suivant |
+| Webhook PawaPay → activation subscription (Phase 9 uniquement) | Callback COMPLETE valide → subscription passe active ET is_premium dérivé répond true à l'appel suivant |
 | Auth middleware | JWT valide → passe ; JWT expiré/forgé → 401 UNAUTHENTICATED, jamais un crash 500 |
 | Coach invite → liaison | Code d'invitation valide → coach_clients créé ; limite 3 clients Découverte → 403 correct |
 
@@ -96,6 +96,10 @@ référence de stratégie :
 7. Mot de passe oublié → email reçu (mock/inbox de test) → nouveau mot
    de passe → auto-login (audit doc passe 6, fiche 22 — chemin d'auth
    critique neuf, marge disponible sous le plafond de 10)
+   ⚠️ Bloqué tant que l'App Link `lyxo.app/reset/{token}` (ROADMAP 1.6)
+   n'est pas livré — le schéma `lyxo://` actuel n'est pas suivi par
+   Chrome/Gmail depuis un lien email (limite structurelle documentée
+   ROADMAP 1.6).
 
 **Règle stricte** : au-delà de 10 flows E2E = scope creep (déjà noté
 Bloc A1). Les E2E sont fragiles et coûteux à maintenir — chaque flow

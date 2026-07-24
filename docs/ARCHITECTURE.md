@@ -41,7 +41,6 @@ flowchart TB
         GooglePlay["Google Play Billing<br/>(Android international)"]
         AppleIAP["Apple StoreKit<br/>(iOS)"]
         Resend["Resend<br/>emails transactionnels"]
-        ExerciseDB["ExerciseDB Pro<br/>200 exercices + GIFs"]
         Sentry["Sentry<br/>crash/error tracking"]
         PostHog["PostHog (EU)<br/>analytics produit"]
         ExpoPush["Expo Push<br/>notifications"]
@@ -62,7 +61,6 @@ flowchart TB
     API -->|"log erreurs"| Sentry
     API -->|"events funnel"| PostHog
     API -->|"push notif"| ExpoPush
-    Client -.->|"cache GIFs (à la demande)"| ExerciseDB
 
     style Client fill:#151312,stroke:#C73E3A,color:#F5F1EC
     style Backend fill:#151312,stroke:#3A3F47,color:#F5F1EC
@@ -99,13 +97,21 @@ sequenceDiagram
     BE-->>U: payload sync incl. is_premium (dérivé, §20.1)
 ```
 
+> Ce diagramme couvre uniquement le PREMIER paiement. Pour le mécanisme
+> de renouvellement (pas d'auto-renew en Mobile Money — MoMo ne se
+> débite pas seul), voir **BILLING_FLOW.md §4.6** : le renouvellement
+> réutilise intégralement ce même mécanisme pay-link, déclenché soit par
+> cron+Resend à J-7/J0/J+3 de l'expiration, soit manuellement par le user
+> via le bouton "Lyxo+" — aucun flux séparé, aucun diagramme dupliqué ici
+> (audit doc #27).
+
 ---
 
 ## 2. MAJOR COMPONENTS — rôle, propriétaire, communication
 
 | Composant | Rôle | Communique avec | Protocole |
 |---|---|---|---|
-| **App mobile** (RN/Expo) | UI, logique locale, cache offline | Backend, RevenueCat SDK, ExerciseDB (cache) | HTTPS REST, SDK natif |
+| **App mobile** (RN/Expo) | UI, logique locale, cache offline | Backend, RevenueCat SDK | HTTPS REST, SDK natif |
 | **WatermelonDB** | Base locale SQLite, source de vérité OFFLINE | App (lecture/écriture immédiate), Backend (sync) | Protocole pull/push WatermelonDB |
 | **Backend API** (Node/Express) | Logique métier, orchestration, seule source de vérité EN LIGNE | Supabase, PawaPay, RevenueCat, Resend, Sentry, PostHog, Expo Push | REST, SQL (Prisma), webhooks |
 | **Supabase Postgres** | Persistance, RLS (autorisation au niveau ligne) | Backend uniquement (jamais l'app directement pour l'écriture sensible) | SQL via Prisma |
@@ -118,10 +124,42 @@ sequenceDiagram
 | **PostHog** | Analytics produit (funnels, rétention) | Backend (events serveur), App (events client) — EU hosting | SDK |
 | **Expo Push** | Notifications push | Backend (déclenche), App (reçoit) | Expo Push API |
 
+### Autorisation : service_role vs RLS (audit doc #6)
+Le Backend se connecte à Supabase Postgres avec la clé **`service_role`**
+(comportement standard Supabase), ce qui **CONTOURNE les Row Level
+Security policies par défaut**. Conséquence directe sur l'autorité :
+- Le mécanisme d'autorisation **PRIMAIRE** de LYXO est la **vérification
+  applicative côté backend** — chaque route contrôle explicitement, en
+  code (middlewares `auth.middleware.ts` + logique des `services/*`,
+  LLD.md §2), que le JWT appelant correspond bien au `profile_id` visé,
+  que la relation invoquée (follow/coach_client/partner/conversation)
+  autorise l'accès demandé, etc.
+- Les policies RLS documentées table par table dans DATA_MODEL.md §2 ne
+  sont **PAS** ce mécanisme primaire : Postgres ne les évalue jamais sur
+  le chemin normal (le backend service_role les ignore). Elles restent
+  documentées et maintenues comme une couche de **defense-in-depth** —
+  une garantie de secours si un accès direct à Postgres hors backend
+  service_role existait un jour. Aujourd'hui l'app mobile ne parle
+  JAMAIS directement à Supabase Postgres pour une donnée sensible (voir
+  tableau des composants ci-dessus : Supabase Postgres ne communique
+  qu'avec le Backend).
+
 ### Principe d'autorité (qui a le dernier mot)
 - **Statut premium** : Backend/Postgres. Jamais l'app, jamais RevenueCat seul (RevenueCat confirme, le backend décide — table `subscriptions`).
 - **Données de séance en conflit** : WatermelonDB local gagne jusqu'à la sync ; au-delà, Last-Write-Wins silencieux côté serveur (Q12a).
-- **Région de facturation** : décidée une fois au signup, modifiable seulement par un endpoint admin — jamais recalculée à la volée côté client.
+- **Région de facturation** : recalculée à CHAQUE événement `SIGNED_IN`
+  (pays déclaré + IP de la requête — `lib/compute-billing-region.ts` côté
+  app appelle `PATCH /v1/profiles/me/billing-region`, API_SPEC §4.2,
+  ROADMAP 1.7) **TANT QU'aucun paiement n'a encore été effectué** pour ce
+  user. Elle se **FIGE définitivement** dès qu'un premier paiement existe
+  (`payments`/`subscriptions` non vide pour ce `profile_id`) — le backend
+  refuse alors tout recalcul, même sur un `SIGNED_IN` ultérieur.
+  ⚠️ CORRECTION (audit doc #26) : ce document indiquait auparavant à tort
+  "décidée une fois au signup, modifiable seulement par un endpoint
+  admin" — cela ne correspondait ni au code (`compute-billing-region.ts`,
+  appelé à chaque connexion) ni à API_SPEC §4.2. Le vrai verrouillage est
+  celui décrit ci-dessus (recalcul libre jusqu'au premier paiement, gel
+  ensuite).
 
 ---
 
@@ -134,7 +172,7 @@ sequenceDiagram
 | Brique | Choix | Pourquoi (raisonnement complet : CLAUDE.md §19.12 et alentours) |
 |---|---|---|
 | Framework mobile | **React Native + Expo** | WatermelonDB n'existe qu'en RN (socle offline-first) · vélocité solo sur stack déjà maîtrisé · Claude Code meilleur en React/TS. Flutter écarté malgré une perf brute légèrement supérieure sur bas de gamme (neutralisée par la discipline DoD). |
-| Base locale offline | **WatermelonDB** | Seul protocole de sync éprouvé pour RN ; réinventer un protocole soi-même serait la pire catégorie de bug possible pour un solo dev. |
+| Base locale offline | **WatermelonDB** ⚠️ voir point ouvert #46 ci-dessous | Seul protocole de sync éprouvé pour RN ; réinventer un protocole soi-même serait la pire catégorie de bug possible pour un solo dev. |
 | Styling | **NativeWind v4** | Tailwind connu (AdsFacile/MboaTV), compilation build-time (pas de coût runtime), meilleure génération de code par Claude Code. Tamagui (universel web+native inutile ici), Unistyles (perf extrême invisible sur des cards de données), twrnc (parsing runtime) écartés. |
 | Navigation | **expo-router** | Standard Expo actuel, file-based, basé sur react-navigation. |
 | Icônes | **lucide-react-native** | Exclusif — cohérence visuelle, bien connu de Claude Code. |
@@ -149,7 +187,23 @@ sequenceDiagram
 | Erreurs/crash | **Sentry** | SDK RN + Node, standard, gratuit à cette échelle, mesure directement le critère "crash-free ≥ 99,5%". |
 | Analytics | **PostHog (EU)** | Funnels/rétention pour les métriques de décision beta (J7), hébergement EU pour la conformité RGPD diaspora. Branché à la beta, pas avant (instrumenter des écrans qui changent chaque semaine = travail jeté). |
 | Push | **Expo Push** | Gratuit, intégré au stack Expo, suffisant (pas de besoin FCM direct). |
-| Exercices | **ExerciseDB Pro** | Licence commerciale déjà budgétée, 200 exercices + GIFs, licence archivée `/docs/licenses/`. |
+| Exercices | **free-exercise-db** (provisoire) | ~800 exercices, licence Unlicense, importés une fois en base (`backend/scripts/import-exercises.ts`) — pas d'abonnement, pas de quota, images statiques (pas de GIFs animés). Bascule prévue vers **ExerciseDB Pro** (GIFs animés, catalogue plus riche) une fois l'abonnement acheté — migration = ré-import, le schéma `exercises` ne change pas. |
+
+> ⚠️ **POINT OUVERT #46 (audit doc, non encore vérifié)** : LYXO impose
+> Reanimated 4 / Expo SDK 57, qui **requièrent la New Architecture**
+> (Fabric + TurboModules) — elle n'est plus optionnelle sur ces
+> versions. La compatibilité de **WatermelonDB** avec la New Architecture
+> n'a PAS encore été validée par un test réel sur ce projet (JSI/
+> TurboModules, comportement des observables `withObservables` sous
+> Fabric). Tant que ce spike technique n'a pas été fait et son résultat
+> documenté ici, le choix WatermelonDB ci-dessus n'est **PAS** considéré
+> comme définitivement acté malgré le verrouillage général de ce
+> document — c'est une exception explicite et temporaire à la règle
+> "toute décision ici est FERMÉE" (§0 en tête de fichier). Action avant
+> Bloc C (LA SYNC, IMPLEMENTATION_PLAN.md) : build un écran minimal avec
+> WatermelonDB sur un Dev Build New Architecture activée, valider lecture/
+> écriture/observables, puis remplacer ce paragraphe par le résultat
+> (validé / lib de repli envisagée) au lieu de le supprimer.
 
 ---
 
@@ -219,7 +273,6 @@ ex. un reset password qui atterrit sur le Play Store) :
 | **Sentry** | Erreurs/crashes | Pas d'analytics produit (c'est PostHog) |
 | **PostHog** | Funnels, rétention, événements produit | Pas de session replay en V1 (trop lourd, trop intrusif) ; pas de feature flags utilisés (kill switch = table maison) |
 | **Expo (EAS)** | Build, OTA update, dépendances compatibles SDK | Pas d'hébergement backend (c'est Render) |
-| **ExerciseDB Pro** | Catalogue d'exercices + médias | Pas de recommandation IA d'exercices |
 | **Google Play / Apple** | Distribution + IAP (via RevenueCat) | N'a jamais accès au flux Mobile Money (hors de leur portée légale actuelle — BILLING_FLOW §9bis) |
 
 ### Ce qui est explicitement HORS architecture (et pourquoi)

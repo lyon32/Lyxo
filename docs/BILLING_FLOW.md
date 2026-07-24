@@ -23,6 +23,20 @@ par email, entièrement hors app. iOS : IAP uniquement, les deux voies
 n'existent pas (pas de texte informatif non plus sur iOS — Apple interdit
 même l'allusion à un paiement externe).
 
+⚠️ **PRÉCISION SCOPE MVP V1 : Android uniquement (décision Juillet 2026,
+non-goal 10 PROJECT_BRIEF.md).** Ce document décrit l'architecture à deux
+voies dans sa forme complète (Android + iOS), mais le MVP V1 ne construit
+QUE la branche Android :
+- **Android Afrique** : voie A ci-dessus — trial déclenché par bouton
+  in-app, paiement futur via PawaPay (§4).
+- **Android Occident** : voie B — paiement carte via Google Play Billing
+  (RevenueCat).
+La ligne "iOS PARTOUT : IAP via RevenueCat UNIQUEMENT" (mentionnée en
+PRICING.md §4) **ne s'applique pas encore** en pratique — iOS est hors
+scope du MVP actuel, aucun build iOS n'existe. Cette contrainte reste
+documentée pour la Phase iOS future et sera retraitée/reconfirmée quand
+iOS sera formellement scopé (pas un flux à coder aujourd'hui).
+
 ---
 
 ## 2. DÉTECTION DE LA VOIE — à l'inscription, stockée, jamais recalculée en douce
@@ -192,6 +206,22 @@ site, ni verbe payer/activer/s'abonner, conformément à §4.1 ; la mention
 "rends-toi sur lyxo.app" est INTERDITE in-app).
 1. Valide le token (existe, non expiré, non utilisé) → affiche
    l'utilisateur reconnu ("Compte : @{pseudo}") + choix Mensuel/Annuel.
+   Trois états d'erreur DISTINCTS à gérer sur cette page (ne jamais les
+   confondre — messages et CTA différents) :
+   - **Déjà utilisé** (`used_at IS NOT NULL`, §4.2bis garde-fou 1) :
+     "Paiement déjà effectué. Ton compte est déjà à jour Lyxo+."
+   - **Lien expiré** (`expires_at < now()`, token jamais utilisé —
+     décision Juillet 2026, état ajouté car distinct du précédent) :
+     "Ce lien de paiement a expiré. Ouvre l'app LYXO et tape sur
+     'Lyxo+' pour recevoir un nouveau lien." CTA cohérent avec la
+     contrainte zéro-paiement-in-app (§9) : **aucun bouton de paiement
+     ni de renvoi d'email sur cette page web elle-même** — la page
+     redirige uniquement vers l'app (deep link `lyxo://` si disponible,
+     sinon simple instruction textuelle), où le bouton "Lyxo+"
+     redéclenche `POST /v1/billing/pay-link` (§4.6, mécanisme de
+     renouvellement) et envoie un nouveau token par email.
+   - **Token inconnu** (n'existe pas en base) : message générique
+     "Lien invalide" + même redirection vers l'app.
 2. Au clic : backend crée `payments(status='pending')` +
    `subscriptions(status='pending')`, génère un **depositId UUIDv4**
    (stocké AVANT l'appel — règle PawaPay), puis appelle
@@ -261,6 +291,18 @@ légitimes = 2 prompts MoMo = double débit possible. Le rate limiting
    si l'user a confirmé sur son téléphone mais que le webhook tarde
    (> 60s), le polling de la page web accorde `provisional_access`
    24h en attendant la confirmation définitive.
+   ⚠️ **Prolongation au-delà de 24h (décision Juillet 2026)** : si le
+   statut est TOUJOURS non confirmé à l'expiration des 24h, un cron
+   re-GET périodique le statut PawaPay (`GET /v2/deposits/{depositId}`)
+   et **prolonge automatiquement l'accès par tranches de 24h
+   supplémentaires** tant que le paiement n'est ni confirmé `COMPLETED`
+   ni définitivement `FAILED` — **jamais de coupure d'accès sur un
+   statut inconnu/indéterminé**. Une alerte Sentry se déclenche après N
+   tentatives de re-GET infructueuses (seuil à calibrer à
+   l'implémentation, ex. 3-5 tranches consécutives sans résolution) pour
+   qu'un humain investigue un cas qui traîne anormalement — l'alerte est
+   un signal d'investigation, jamais un déclencheur de coupure
+   automatique.
 5. Push + email de confirmation : "Ton Pass Lyxo+ est actif ✓" — la
    réception du push déclenche un /sync EXPLICITE côté app (règle
    CLAUDE.md §20.4 : sans ça, un user offline croit son paiement perdu).
@@ -325,13 +367,33 @@ Références Google : answer/140504 (créer/gérer les abonnements) et
 answer/12154973 (concepts base plans/offers, déjà intégré §4.5bis).
 
 ### 4.6 Renouvellement (pas d'auto-renew en Mobile Money)
-Le MoMo ne se débite pas tout seul — le "renouvellement" est un
-nouveau paiement volontaire :
-- J-7 avant `current_period_end` : email + push "Ton Pass expire le
-  {date}" avec nouveau lien tokenisé.
-- J0 : expiration → `status='expired'`, retour au tier gratuit
-  (données intactes, règle des 90 jours s'applique).
-- J+3 : dernière relance douce. Puis silence (pas de harcèlement).
+Le MoMo ne se débite pas tout seul — PawaPay n'a AUCUN abonnement
+récurrent natif. Le "renouvellement" est donc un nouveau paiement
+volontaire qui **réutilise intégralement le mécanisme pay-link déjà
+documenté en §4.2** (même génération de token, même endpoint
+`POST /v1/billing/pay-link`, même page `lyxo.app/pay?token=`) — **il
+n'existe PAS de flux séparé pour le renouvellement.** Deux déclencheurs
+mènent au même mécanisme :
+1. **Déclencheur automatique (cron + Resend) à l'expiration** :
+   - J-7 avant `current_period_end` : email + push "Ton Pass expire le
+     {date}" avec un nouveau lien tokenisé (pay-link régénéré, §4.2bis
+     invalide l'ancien token comme pour le premier paiement).
+   - J0 : expiration → `status='expired'`, retour au tier gratuit
+     (données intactes, règle des 90 jours s'applique) → email
+     automatique via Resend contenant le lien de paiement UNIQUE pour ce
+     user.
+   - J+3 : dernière relance douce (nouveau pay-link). Puis silence (pas
+     de harcèlement).
+2. **Déclencheur manuel (bouton "Lyxo+" in-app), à tout moment** : si
+   l'user n'a pas payé immédiatement après l'email automatique, il peut
+   à tout moment taper le bouton "Lyxo+" dans l'app (le même CTA que
+   pour un premier abonnement) → ce tap appelle
+   `POST /v1/billing/pay-link` exactement comme le cron → un nouvel
+   email avec un lien de paiement frais est envoyé instantanément.
+   Dès que le paiement est reçu, le webhook PawaPay (§4.4) reconnaît
+   automatiquement l'user via le `user_id` encodé dans le token
+   (§4.2bis) et active Lyxo+ — identique bit pour bit au premier
+   paiement, aucune branche de code spécifique au "renouvellement".
 
 ---
 
@@ -343,6 +405,14 @@ Flux 100% standard, rien d'exotique :
 2. Achat → RevenueCat valide le reçu → webhook RevenueCat vers le
    backend → upsert `subscriptions(source='revenuecat',
    status='active', external_ref=app_user_id)`.
+   ⚠️ **Re-vérification serveur-à-serveur obligatoire avant activation
+   définitive** (règle symétrique au re-GET PawaPay, §4.4 point 2) :
+   ne jamais activer `is_premium` sur la seule foi du webhook — toujours
+   ré-appeler `GET /subscribers/{app_user_id}` (API REST RevenueCat,
+   Bearer secret key) pour confirmer que l'entitlement actif existe
+   réellement côté RevenueCat avant de marquer `subscriptions.status =
+   'active'`. Protège contre un webhook forgé/rejoué, exactement comme
+   le Check Deposit Status protège la voie A.
 3. `app_user_id` RevenueCat = le `user_id` Supabase (à configurer au
    login SDK) — c'est ce qui lie les deux mondes.
 4. Renouvellements/annulations/refunds : gérés par les webhooks

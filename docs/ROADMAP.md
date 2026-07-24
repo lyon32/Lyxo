@@ -38,6 +38,16 @@
   GitHub Actions (lint+typecheck sur PR). Repo app poussé sur
   github.com/lyon32/Lyxo. Backend (Node/Express) reste à faire —
   voir 1.3.
+
+  **Déviation documentée (audit doc, trouvée non tracée à l'écrit)** :
+  `react-native-reanimated` est en v4 (`^4.5.2`), pas v3 comme fixé par
+  CLAUDE_LYXO_V3.md §2 ("Animations | React Native Reanimated 3"). Choix
+  imposé par Expo SDK 57 (New Arch) — NativeWind v4/reanimated peer deps
+  de ce SDK n'exposent plus de branche v3 compatible — d'où aussi l'ajout
+  de `react-native-worklets` en dépendance directe (peer explicite de
+  reanimated v4, cf. note 2026-07-22). Aucun impact fonctionnel constaté ;
+  §2 du CLAUDE.md est corrigé en conséquence pour refléter reanimated v4
+  comme le choix réel imposé désormais par la version d'Expo.
 - [X]  **1.2** Installer l'outillage Claude Code : Context7, Resend MCP,
   Maestro MCP + CLI, GitHub MCP, Supabase MCP, Expo MCP, CodeRabbit
   (GitHub App + .coderabbit.yaml), EAS CLI. Expo MCP et Resend MCP en
@@ -99,7 +109,11 @@
   /v1/profiles/me + GET /v1/profiles/check-username (rate-limited,
   zod, allowlist stricte 403 hors champs autorisés), lib/supabase-admin
   (service_role, lazy — ne crashe plus le boot si absent). App :
-  lib/supabase.ts (AsyncStorage + PKCE), lib/auth-store.ts (zustand),
+  lib/supabase.ts (**SecureStore** + PKCE — correction de cette ligne :
+  la session Supabase est stockée via `expo-secure-store`, jamais
+  AsyncStorage, conforme SECURITY_NOTES.md §3bis.1 ; la mention
+  "AsyncStorage" plus haut dans cette tâche concerne uniquement le
+  stockage pré-auth des choix d'onboarding, non sensible), lib/auth-store.ts (zustand),
   push-onboarding-choices.ts (PATCH post-login idempotent), écrans
   app/auth/(index=signup|login|forgot-password|reset-password).tsx,
   gate racine réel (needs-onboarding/needs-auth/ready).
@@ -287,6 +301,44 @@
 - [ ]  **4.7** Suppression de compte (in-app + endpoint soft-delete 30j)
   + export JSON (RGPD).
 
+### Refonte UI/UX — brainstorm design référence (26 captures, 2026-07-24)
+Décisions détaillées : LLD.md §Redesign référence. Palette Braise inchangée
+— seuls structure/composants/copy sont adoptés depuis la référence.
+
+- [ ]  **4.8** Refonte nav : Home / Search (sous-tabs Feed·Discover) /
+  Performance / Shop (v2, vide en v1) / Actions("...") — profil retiré de
+  la tab bar, accessible via icône avatar sur Home. `log.tsx` (tab
+  Dumbbell actuel) retiré ; bibliothèque d'exercices devient le sheet
+  "Add Exercise" (dans le flow séance) + un écran Exercises via Actions.
+- [ ]  **4.9** Écran Home : header 3 icônes (notifications/messages/avatar),
+  dropdown "Today" → calendrier mensuel avec indicateurs de jours actifs,
+  bandeau conseil dismissible, CTA "Start Workout", module streak "Last 2
+  Weeks" (grille 7j × 2 semaines + compteur active days).
+- [ ]  **4.10** Écran détail workout (ouvert depuis feed/profil) : header
+  auteur+date, titre, stats row (Duration/Exercises/PRs), row social
+  (Likes/Comments), photo optionnelle si postée, schéma anatomique
+  (2 assets fixes face/dos, sélection selon muscles travaillés, palette de
+  highlight dédiée indépendante de la palette UI), liste d'exercices
+  set-par-set (colonnes reps/poids pour la muscu, durée/distance/allure/
+  calories pour le cardio). PR = volume max historique sur l'exercice.
+- [ ]  **4.11** Menu Actions v1 : Exercises, Physique (photos de
+  progression uniquement, pas de chiffres — ceux-ci restent dans
+  Performance), Feedback (formulaire in-app → support). Items visibles
+  mais désactivés/grisés pour les stubs v2 : Connect Health (Google
+  Fit/Apple Health), Nutrition Tracking, Programs (marketplace coach).
+  "Import" abandonné définitivement (aucune version).
+- [ ]  **4.12** Settings : Theme (Auto/Light/Dark), unités poids/distance,
+  Auto Complete Sets — actifs v1. Toggles Write Workouts/Write Body
+  Metrics/Health Suggestions visibles mais grisés (dépendent du sync
+  Health, v2).
+- [ ]  **4.13** Profil v1 : tab unique Workouts (pas de tab Splits —
+  Splits/Routines fusionnés dans "Programs", v2 marketplace coach, voir
+  Phase 5bis/CLAUDE_LYXO_V3.md §18). Compteurs Followers/Following/
+  **Partners** (3 relations distinctes). Edit Profile garde Username/
+  Handle/Bio/Gym/Instagram (pas de champ University ni Badge Selector).
+  Share Lift Card : nom/handle/partners + stats d'entraînement (streak,
+  volume, workouts logged).
+
 ## PHASE 5 — SOCIAL (Bloc E — dense, surveiller le planning)
 
 - [ ]  **5.1** Migration `follows` + RLS (asymétrique, self-ref, mutuel
@@ -309,7 +361,42 @@
 - [ ]  **⚠️ Soupape planning** : si 5.7 déborde, la photo overlay glisse
   en Phase Discover (S13+), la carte-stats (5.6) suffit à livrer.
 
+## PHASE 5bis — GYM MATCHING (Bloc E-bis, override V1 daté 2026-07-24)
+
+> ⚠️ Cette phase n'existait pas dans le planning original — "Gym Matching"
+> était classé non-goal V2+/hors-roadmap (CLAUDE_LYXO_V3.md §18) et le chat
+> associé tombait sous le non-goal 3 PROJECT_BRIEF.md ("pas de messagerie
+> générale"). Les deux ont été explicitement levés par décision écrite de
+> Lionel le 2026-07-24, pendant le brainstorm design référence — voir
+> PROJECT_BRIEF.md §4 non-goal 3 et CLAUDE_LYXO_V3.md §18 PRIORITÉ NIVEAU
+> 2bis pour la trace de la décision. Dépend de Phase 5 (Follow/relations).
+
+- [ ]  **5bis.1** Migration `partner_swipes` (like/reject) + `partners`
+  (match mutuel, relation distincte de `follows`) + RLS.
+- [ ]  **5bis.2** Écran swipe matching (sous-tab Discover du tab Search) :
+  pile de cartes, critères de compatibilité à définir (salle, horaires,
+  split) avant implémentation.
+- [ ]  **5bis.3** Migration `conversations` + `messages` : statut
+  `pending`/`accepted` par conversation — porte le dossier "Requests"
+  (non-Partners) vs inbox principale (Partners).
+- [ ]  **5bis.4** Écran Messages : inbox Partners + dossier Requests
+  séparé (accord explicite requis avant de rejoindre l'inbox principale).
+- [ ]  **5bis.5** DoD check : un follower non-Partner peut initier un
+  message qui atterrit en Requests ; un Partner matché va direct en inbox.
+
 ## PHASE 6 — COACH MODE V1 (Bloc F, chevauche Phase 5)
+
+> **Chevauchement avec Phase 5 expliqué** : 6.1 (migration `coach_clients`
+> + attribut `is_coach`), 6.2 (génération invitation) et 6.3 (acceptation
+> invitation) n'ont **aucune dépendance technique réelle** sur Phase 5 —
+> `coach_clients` est une table indépendante du graphe de follow, et le
+> flux d'invitation coach ne lit ni le feed, ni les stories, ni le
+> leaderboard pour fonctionner. Ces 3 tâches peuvent démarrer dès que
+> Phase 4 est terminée, sans attendre Phase 5. 6.4-6.7 (programmes,
+> builder, dashboard coach) n'ont pas non plus de dépendance dure sur
+> Phase 5 ; elles sont séquencées après 6.1-6.3 pour une raison de flux
+> logique (un programme s'assigne à un client déjà lié via 6.1-6.3), pas
+> à cause d'un blocage technique.
 
 - [ ]  **6.1** Migration `coach_clients` (many-to-many, limite 3
   Découverte) + attribut `is_coach` sur profiles.
@@ -345,10 +432,15 @@
   de décision (J7 40/25/20).
 - [ ]  **7.8** Vérifier la règle des 20 testeurs/14 jours sur le compte
   développeur — calendrier ajusté en conséquence.
+  ⚠️ Cette règle concerne, à la connaissance actuelle, le canal **Closed
+  Testing** — PAS Internal Testing (utilisé pour les 10 coachs, CICD
+  §3.3). Politique Google Play à reconfirmer à ce moment (elle peut
+  évoluer) : si confirmée, ajouter/basculer sur un canal Closed Testing
+  pour débloquer la promotion vers la Production track (CICD §3.3).
 
 ---
 
-## PHASE 8 — DISCOVER + POLISSAGE (S13-S16, hors MVP beta)
+## PHASE 8 — DISCOVER + POLISSAGE (hors MVP beta)
 
 - [ ]  **8.1** Discover public : vue matérialisée trending (pas de
   Redis), écran Discover actif, posts/commentaires publics.

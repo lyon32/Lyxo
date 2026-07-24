@@ -125,15 +125,27 @@ le produit est mondial, pas régional.
   user perdu. C'est LE critère de confiance absolu.
 - Log d'un set en < 5 secondes en conditions réelles de salle (mesuré).
 
-### Lancement public (fin S16) — mondial dès le jour 1
+### Lancement public MVP (fin S16) — mondial dès le jour 1
 - App publiée sur Play Store (.aab accepté, suppression de compte, App
   Access configuré), FR + EN, kg + lbs — **aucune barrière pour un user
   de n'importe quel pays**. App Store ensuite.
 - Crash-free ≥ 99,5% (Sentry). App < 30 Mo à l'installation.
-- Discover non-vide au jour 1 : les programmes des 10+ coachs beta et le
-  contenu de leurs clients constituent le fond de catalogue.
+- Feed abonnés non-vide au jour 1 : les séances des 10+ coachs beta et de
+  leurs clients constituent le fond de contenu (non-goal 7, §18.11).
 
-### Monétisation (Phase 3, dès activation des paiements)
+### Discover public — HORS-MVP (Phase 8, pas un livrable du même effort MVP)
+- Le Discover public (trending, posts publics, découverte hors abonnés)
+  n'est PAS un livrable de l'effort MVP (S1-S12, beta coachs) : c'est
+  Phase 8 de ROADMAP.md (S13-S16, "hors MVP beta"), un bloc de travail
+  distinct qui précède le lancement public fin S16 mais qui n'appartient
+  PAS au même périmètre d'effort que le MVP. Ne jamais le compter dans
+  les critères de succès de la beta S12 ci-dessus — c'est l'erreur que ce
+  paragraphe corrige : Discover reste un critère de la Phase 8, pas du
+  MVP.
+- Voir non-goal 7 ci-dessous et PRD.md §1.4 pour le détail du statut
+  (🔵 V2 — S13-S16 dans ROADMAP, effort distinct du MVP S1-S12).
+
+### Monétisation (Phase PRODUIT 3 = ROADMAP Phase 9, dès activation des paiements)
 - ≥ 3% de conversion gratuit → Lyxo+ à 90 jours après activation.
 - ≥ 25% des coachs Découverte passent Coach Pro dans les 60 jours.
 - Premier mois à ≥ 500 000 FCFA (~760 €) de revenus récurrents +
@@ -157,9 +169,17 @@ le produit est mondial, pas régional.
    WODs. Musculation / force, point.
 2. **Pas de gestion de salle de sport** (abonnements membres, contrôle
    d'accès, planning de cours).
-3. **Pas de messagerie générale** : la messagerie est strictement
-   coach ↔ client (V2, avec la marketplace). En V1 : bouton WhatsApp.
-   On ne concurrence pas les messageries, on s'y greffe (partage sortant).
+3. **Pas de messagerie générale** — ⚠️ **DÉCISION ÉCRITE, DATÉE 2026-07-24
+   (override partiel)** : Lionel a validé un chat in-app V1 entre **Partners**
+   (lifters matchés via le Gym Matching — override lié, voir
+   CLAUDE_LYXO_V3.md §18), avec dossier "Requests" pour les messages
+   entrants hors-Partners (accord requis avant de rejoindre l'inbox
+   principale) — décidé pendant le brainstorm design de redesign référence
+   (26 captures), voir LLD.md §Home/Search et ROADMAP.md Phase 5bis. Le
+   reste de la règle originale tient toujours : la messagerie
+   **coach ↔ client** reste strictement V2/marketplace, bouton WhatsApp en
+   V1 pour ce cas précis — on ne construit qu'un seul système de chat
+   (Partners), pas une messagerie générale illimitée.
 4. **Pas de contenu vidéo long / streaming de cours** — coût CDN
    incompatible avec le Data Saver, et hors problème défini.
 5. **Pas de marketplace de suppléments / e-commerce physique.**
@@ -174,7 +194,8 @@ le produit est mondial, pas régional.
 8. **Pas de nutrition en MVP** — le logger nutrition est un produit dans
    le produit ; il n'entre pas tant que le tracking training n'a pas
    prouvé sa rétention.
-9. **Pas de paiements avant la beta validée** — Phase 3. Le MVP est
+9. **Pas de paiements avant la beta validée** — Phase PRODUIT 3 (= ROADMAP
+   Phase 9). Le MVP est
    entièrement gratuit ; seules les colonnes trial_used/trial_expires_at/
    billing_region existent (aucune table billing, aucun SDK — règle
    §20.6). L'architecture est déjà validée par écrit par Google Play
@@ -214,5 +235,5 @@ le produit est mondial, pas régional.
 
 *Documents liés : PRICING.md (pricing officiel) · BILLING_FLOW.md (flux de
 paiement) · CLAUDE_LYXO_V3.md (règles techniques §18-20) ·
-IMPLEMENTATION_PLAN.md (roadmap S1-S16) · LYXO_UI_PROMPT.md (design
-Braise).*
+IMPLEMENTATION_PLAN.md (roadmap S1-S12) · ROADMAP.md (séquencement S13+,
+Phases 8-9 et suivantes) · LYXO_UI_PROMPT.md (design Braise).*

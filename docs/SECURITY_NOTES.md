@@ -83,6 +83,7 @@ Toute donnée entrante (body, query, params) est validée **avant** d'atteindre 
 | S10 | Un utilisateur supprime son compte puis revient sur l'app avant la purge à J+30 | Le compte reste dans un état "désactivé réversible" — reconnecter réactive, la purge définitive n'a lieu qu'à l'échéance (§18.5/§20.3). |
 | S11 | Une story avec photo contient du contenu problématique | NSFW-check automatique à l'upload (§19.3) + auto-hide à 3 signalements + review manuelle (toi) sous 48h. Aucune photo ne s'affiche publiquement avant ce filtre initial. |
 | S12 | Un compte de test/reviewer (`is_reviewer=true`) pollue les statistiques publiques ou le leaderboard | Exclusion systématique des agrégats analytics ET du leaderboard/Discover dès la création du flag (vérifié dans les mêmes requêtes que le filtre `deleted_at is null`). |
+| S13 | Un script tente un brute-force sur `/auth/login` (mot de passe deviné par essais répétés) | **Pas de couche anti-brute-force additionnelle côté backend pour le MVP** — on s'appuie sur le rate limiting natif de Supabase Auth, qui protège par défaut les endpoints sign-in/sign-up/OTP par IP et par identifiant (configurable dans Dashboard > Authentication > Rate Limits ; valeurs par défaut Supabase de l'ordre de quelques dizaines de tentatives/heure selon l'endpoint — à vérifier dans le dashboard du projet, non modifiées pour le MVP). Réévaluer une couche applicative dédiée (ex. verrouillage progressif, CAPTCHA) uniquement si un abus réel est observé en beta (Sentry/logs), pas en anticipation. |
 
 ---
 

@@ -16,8 +16,9 @@
 |---|---|---|
 | Node.js | 20 LTS | Backend + tooling |
 | TypeScript | ^5.4 (strict mode ON partout) | `"strict": true` non négociable dans tsconfig |
-| Expo SDK | dernière stable au démarrage du projet, notée dans `app.json` | Vérifiée compatible avec toutes les libs natives avant tout upgrade |
+| Expo SDK | **57** (versionnée dans `app.json`) | Vérifiée compatible avec toutes les libs natives avant tout upgrade |
 | React Native | version bundlée par l'Expo SDK ci-dessus | Ne jamais forcer une version RN hors de celle d'Expo |
+| react-native-reanimated | **v4 obligatoire — jamais v3** (imposé par Expo SDK 57 / New Architecture) | Nécessite `react-native-worklets` en peer dependency — vérifier les deux à chaque upgrade Expo SDK |
 | NativeWind | v4 (stable) — **jamais v5** (pre-release, §A1 IMPLEMENTATION_PLAN) | |
 | Tailwind CSS | **^3.4.17** — **jamais v4** (incompatible NativeWind v4) | Piège documenté §A1 |
 | WatermelonDB | dernière stable compatible New Architecture | Vérifier compat à chaque upgrade Expo SDK |
@@ -68,7 +69,8 @@ Types autorisés : `feat` · `fix` · `refactor` · `test` · `docs` ·
 `chore` · `perf` · `style` (formatage pur, zéro impact logique).
 
 Scopes typiques : `logger`, `sync`, `social`, `coach`, `billing`,
-`auth`, `design-system`, `ci`.
+`auth`, `design-system`, `ci`, `search`, `matching`, `messages`,
+`onboarding`.
 
 Exemples :
 ```
