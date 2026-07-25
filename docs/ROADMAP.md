@@ -245,8 +245,44 @@
 
 ## PHASE 2 — LE LOGGER (Bloc B)
 
-- [ ]  **2.1** Migration : `exercises` + import ExerciseDB (200 exos, FR
+- [x]  **2.1** Migration : `exercises` + import ExerciseDB (200 exos, FR
   traduit — relecture humaine échantillon 30) + pack 50 GIFs embarqués.
+
+  Fait : migration `create_exercises` (RLS `select_all` public, référentiel
+  lecture seule) + import réel via `backend/scripts/import-exercises.ts`
+  (source free-exercise-db/Unlicense en remplacement d'ExerciseDB Pro,
+  ARCHITECTURE.md §3) — **200 exercices, 50 pack embarqué, 200 GIFs**
+  générés (2 frames ping-pong via `lib/gif.ts`) + uploadés sur Supabase
+  Storage (`exercise-gifs`). Traductions FR : relecture humaine complète
+  (migration `review_exercise_names_fr`, needs_review=0). App :
+  `lib/exercises-store.ts` (chargement direct Supabase, en mémoire),
+  `lib/exercise-labels.ts` (slugs EN → clés i18n), composants
+  `ExerciseListItem`/`ExerciseDetailModal`/`MuscleFilterChips`, intégrés
+  dans `app/(tabs)/log.tsx`.
+
+  **Complété/corrigé le 2026-07-25 (reprise après audit)** :
+  1. **Réconciliation migrations** : `review_exercise_names_fr` avait été
+     appliquée en distant via le MCP sans fichier local → reconstituée à
+     l'identique en `supabase/migrations/20260723195534_...sql` (règle
+     source de vérité DATA_MODEL.md §4). ⚠️ Dette restante : les timestamps
+     des fichiers locaux ne matchent pas les versions distantes (remote
+     alimenté via `apply_migration` MCP, pas `db push`) — cosmétique tant
+     que l'apply reste MCP, à nettoyer si on repasse un jour à `db push`.
+  2. **`updated_at`** ajouté sur `exercises` (migration `20260725120000`,
+     appliquée) — la table doit le porter pour être pull-able (DATA_MODEL
+     §2.3 / API_SPEC §4.1) ; types régénérés (`backend/src/types/supabase.ts`).
+  3. **"Pack 50 GIFs embarqués" — décision revue** : bundler 50 GIFs animés
+     = ~14 Mo (moitié du budget < 30 Mo). À la place, embarqué **1 vignette
+     WebP statique légère par exo du pack** (240px, ~0,23 Mo au TOTAL pour
+     les 50) via `backend/scripts/generate-embedded-thumbs.ts` →
+     `assets/exercises/*.webp` + index de `require()` statiques
+     (`embedded-images.generated.ts`). L'app (`lib/exercise-image.ts`,
+     `embeddedThumbFor`) utilise la vignette locale (offline, zéro data)
+     dans la liste, et comme placeholder offline sous le GIF animé dans le
+     détail. Cohérent avec la logique Data Saver (CONVENTIONS §5.7).
+     ⚠️ Réserve : la LISTE d'exercices (métadonnées) reste chargée par
+     requête réseau Supabase — l'offline-first complet du référentiel
+     (seeding local) se décidera au Bloc C (sync), pas ici.
 - [ ]  **2.2** Migration : `custom_exercises` (limite 5 gratuit).
 - [ ]  **2.3** Écran Workout Logger : structure de base (sélection
   exercice, ajout de séries) — sans encore la saisie poids/reps.

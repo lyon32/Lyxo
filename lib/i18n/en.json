@@ -3,19 +3,81 @@
     "home": "Home",
     "log": "Log",
     "progress": "Progress",
-    "discover": "Discover",
-    "profile": "Profile"
+    "search": "Search",
+    "profile": "Profile",
+    "shop": "Shop"
   },
   "home": {
-    "test_title": "Braise palette — test screen",
-    "test_subtitle": "bg · card · border · muted · fg · ember · steel",
-    "cta": "Start workout"
+    "today_label": "Today",
+    "greeting": {
+      "morning": "Good Morning",
+      "afternoon": "Good Afternoon",
+      "evening": "Good Evening"
+    },
+    "tip_text": "Hold the button below to load previous workouts",
+    "cta_title": "Start Workout",
+    "cta_subtitle": "Plan your next session",
+    "streak": {
+      "title": "Last 2 Weeks",
+      "active_days": "active days"
+    },
+    "calendar": {
+      "locale": "en-US",
+      "done": "Done",
+      "weekday_mon": "MON",
+      "weekday_tue": "TUE",
+      "weekday_wed": "WED",
+      "weekday_thu": "THU",
+      "weekday_fri": "FRI",
+      "weekday_sat": "SAT",
+      "weekday_sun": "SUN",
+      "weekday_short_sun": "S",
+      "weekday_short_mon": "M",
+      "weekday_short_tue": "T",
+      "weekday_short_wed": "W",
+      "weekday_short_thu": "T",
+      "weekday_short_fri": "F",
+      "weekday_short_sat": "S"
+    }
   },
-  "discover": {
-    "placeholder": "Coming soon"
+  "search": {
+    "placeholder": "Search users",
+    "feed_tab": "Feed",
+    "discover_tab": "Discover",
+    "feed_empty_title": "No users found",
+    "feed_empty_subtitle": "Your search didn't return any results. Try different keywords or follow more users.",
+    "discover_title": "Find training partners",
+    "discover_cta": "Get Started",
+    "discover_reassurance": "Opt out anytime in Settings",
+    "matches_title": "Your Matches",
+    "matches_empty_title": "No matches yet",
+    "matches_empty_subtitle": "Check back later — compatible lifters will show up here."
   },
   "profile": {
     "sign_out": "Log out"
+  },
+  "notifications": {
+    "header_title": "Notifications",
+    "empty_title": "No notifications",
+    "empty_subtitle": "Likes, comments, reactions, and follows will appear here."
+  },
+  "messages": {
+    "header_title": "Messages",
+    "empty_title": "No gym partners yet."
+  },
+  "shop": {
+    "header_title": "Shop",
+    "placeholder": "Coming soon"
+  },
+  "actions": {
+    "title": "Actions",
+    "exercises": "Exercises",
+    "physique": "Physique",
+    "feedback": "Feedback",
+    "health": "Connect to Apple Health",
+    "nutrition": "Nutrition Tracking",
+    "programs": "Programs",
+    "coming_soon": "Coming soon"
   },
   "onboarding": {
     "language": {
@@ -24,7 +86,6 @@
       "continue": "Continue"
     },
     "welcome": {
-      "skip": "Skip",
       "headline": "Lift more. Together.",
       "subtitle": "Your workouts saved even offline. You'll never lose a session.",
       "cta": "Get started",
@@ -117,7 +178,51 @@
       "weak_password": "8 characters minimum.",
       "offline": "Connection required to create your account. Your choices are saved — try again once you have signal.",
       "generic": "Something went wrong. Try again.",
+      "invalid_username": "Invalid username: lowercase letters, numbers and _ only, 3 to 20 characters.",
       "back_to_login": "Back to login"
+    }
+  },
+  "exercises": {
+    "header_title": "Exercise library",
+    "search_placeholder": "Search an exercise",
+    "filter_all": "All",
+    "empty_state": "No exercise matches your search.",
+    "load_error": "Couldn't load the exercise library.",
+    "retry": "Retry",
+    "equipment_label": "Equipment",
+    "muscle_group_label": "Muscle group",
+    "muscle_groups": {
+      "abdominals": "Abs",
+      "abductors": "Abductors",
+      "adductors": "Adductors",
+      "biceps": "Biceps",
+      "calves": "Calves",
+      "chest": "Chest",
+      "forearms": "Forearms",
+      "glutes": "Glutes",
+      "hamstrings": "Hamstrings",
+      "lats": "Lats",
+      "lower_back": "Lower back",
+      "middle_back": "Middle back",
+      "neck": "Neck",
+      "quadriceps": "Quadriceps",
+      "shoulders": "Shoulders",
+      "traps": "Traps",
+      "triceps": "Triceps"
+    },
+    "equipment": {
+      "barbell": "Barbell",
+      "dumbbell": "Dumbbell",
+      "cable": "Cable",
+      "machine": "Machine",
+      "kettlebells": "Kettlebell",
+      "bands": "Band",
+      "body_only": "Bodyweight",
+      "ez_curl_bar": "EZ bar",
+      "exercise_ball": "Swiss ball",
+      "medicine_ball": "Medicine ball",
+      "foam_roll": "Foam roller",
+      "other": "Other"
     }
   }
 }

@@ -3,19 +3,81 @@
     "home": "Accueil",
     "log": "Log",
     "progress": "Progrès",
-    "discover": "Discover",
-    "profile": "Profil"
+    "search": "Search",
+    "profile": "Profil",
+    "shop": "Boutique"
   },
   "home": {
-    "test_title": "Palette Braise — écran de test",
-    "test_subtitle": "bg · card · border · muted · fg · ember · steel",
-    "cta": "Commencer la séance"
+    "today_label": "Aujourd'hui",
+    "greeting": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "tip_text": "Maintiens le bouton ci-dessous pour charger les séances précédentes",
+    "cta_title": "Démarrer une séance",
+    "cta_subtitle": "Planifie ta prochaine séance",
+    "streak": {
+      "title": "2 dernières semaines",
+      "active_days": "Jours actifs"
+    },
+    "calendar": {
+      "locale": "fr-FR",
+      "done": "Terminé",
+      "weekday_mon": "LUN",
+      "weekday_tue": "MAR",
+      "weekday_wed": "MER",
+      "weekday_thu": "JEU",
+      "weekday_fri": "VEN",
+      "weekday_sat": "SAM",
+      "weekday_sun": "DIM",
+      "weekday_short_sun": "D",
+      "weekday_short_mon": "L",
+      "weekday_short_tue": "M",
+      "weekday_short_wed": "M",
+      "weekday_short_thu": "J",
+      "weekday_short_fri": "V",
+      "weekday_short_sat": "S"
+    }
   },
-  "discover": {
-    "placeholder": "Bientôt disponible"
+  "search": {
+    "placeholder": "Rechercher des utilisateurs",
+    "feed_tab": "Feed",
+    "discover_tab": "Discover",
+    "feed_empty_title": "Aucun utilisateur pour l'instant",
+    "feed_empty_subtitle": "Tes séances apparaîtront ici. Suis des lifters ou ajoute des partenaires de salle pour enrichir ton feed.",
+    "discover_title": "Trouve des partenaires d'entraînement",
+    "discover_cta": "Commencer",
+    "discover_reassurance": "Désactivable à tout moment dans Réglages",
+    "matches_title": "Tes matchs",
+    "matches_empty_title": "Pas encore de matchs",
+    "matches_empty_subtitle": "Reviens plus tard — on t'affichera ici les lifters compatibles avec ton profil."
   },
   "profile": {
     "sign_out": "Se déconnecter"
+  },
+  "notifications": {
+    "header_title": "Notifications",
+    "empty_title": "Aucune notification",
+    "empty_subtitle": "Les likes, commentaires, réactions et abonnements apparaîtront ici."
+  },
+  "messages": {
+    "header_title": "Messages",
+    "empty_title": "Aucun partenaire de salle pour l'instant."
+  },
+  "shop": {
+    "header_title": "Boutique",
+    "placeholder": "Bientôt disponible"
+  },
+  "actions": {
+    "title": "Actions",
+    "exercises": "Exercices",
+    "physique": "Physique",
+    "feedback": "Feedback",
+    "health": "Connexion Apple Health",
+    "nutrition": "Suivi nutritionnel",
+    "programs": "Programmes",
+    "coming_soon": "Bientôt"
   },
   "onboarding": {
     "language": {
@@ -24,7 +86,6 @@
       "continue": "Continuer"
     },
     "welcome": {
-      "skip": "Passer",
       "headline": "Soulève plus. Ensemble.",
       "subtitle": "Tes séances enregistrées même sans réseau. Tu ne perdras jamais une séance.",
       "cta": "Commencer",
@@ -117,7 +178,51 @@
       "weak_password": "8 caractères minimum.",
       "offline": "Connexion requise pour créer ton compte. Tes choix sont gardés — réessaie dès que tu as du signal.",
       "generic": "Une erreur est survenue. Réessaie.",
+      "invalid_username": "Pseudo invalide : lettres minuscules, chiffres et _ uniquement, 3 à 20 caractères.",
       "back_to_login": "Retour à la connexion"
+    }
+  },
+  "exercises": {
+    "header_title": "Bibliothèque d'exercices",
+    "search_placeholder": "Rechercher un exercice",
+    "filter_all": "Tous",
+    "empty_state": "Aucun exercice ne correspond à ta recherche.",
+    "load_error": "Impossible de charger la bibliothèque d'exercices.",
+    "retry": "Réessayer",
+    "equipment_label": "Équipement",
+    "muscle_group_label": "Groupe musculaire",
+    "muscle_groups": {
+      "abdominals": "Abdominaux",
+      "abductors": "Abducteurs",
+      "adductors": "Adducteurs",
+      "biceps": "Biceps",
+      "calves": "Mollets",
+      "chest": "Pectoraux",
+      "forearms": "Avant-bras",
+      "glutes": "Fessiers",
+      "hamstrings": "Ischio-jambiers",
+      "lats": "Dorsaux",
+      "lower_back": "Lombaires",
+      "middle_back": "Milieu du dos",
+      "neck": "Nuque",
+      "quadriceps": "Quadriceps",
+      "shoulders": "Épaules",
+      "traps": "Trapèzes",
+      "triceps": "Triceps"
+    },
+    "equipment": {
+      "barbell": "Barre",
+      "dumbbell": "Haltère",
+      "cable": "Poulie",
+      "machine": "Machine",
+      "kettlebells": "Kettlebell",
+      "bands": "Élastique",
+      "body_only": "Poids du corps",
+      "ez_curl_bar": "Barre EZ",
+      "exercise_ball": "Swiss ball",
+      "medicine_ball": "Medicine ball",
+      "foam_roll": "Rouleau de massage",
+      "other": "Autre"
     }
   }
 }
