@@ -48,6 +48,13 @@ Workflow `.github/workflows/pr-checks.yml`, exécuté sur chaque PR vers
    "MoMo", "Orange Money") — **build rouge si détecté** (conformité
    écrite Google, BILLING_FLOW §4.1/§8 — gate déjà listé au récapitulatif
    §4, décrit ici explicitement dans le pipeline réel).
+3bis. **Scan de vulnérabilités des dépendances** (AJOUTÉ, audit technique
+   2026-07-25) — Dependabot (GitHub natif, `.github/dependabot.yml`) sur
+   `lyxo-app` et `lyxo-api`, mises à jour hebdomadaires groupées par
+   écosystème npm. `gitleaks` protège contre les secrets committés, pas
+   contre les CVE des dépendances (historique connu sur l'écosystème RN/
+   Express) — les deux sont complémentaires, ni l'un ni l'autre ne
+   remplace l'autre.
 4. **Lint** (`npm run lint`) — bloquant.
 5. **Typecheck** (`npx tsc --noEmit`, app ET backend) — bloquant.
 6. **Tests unitaires** (`npm test`) — bloquant. Cible en priorité les
@@ -206,6 +213,9 @@ CONVENTIONS.md et IMPLEMENTATION_PLAN). Le composant `UpdateChecker`
 | Target SDK conforme à la deadline Google Play en cours | Chaque upgrade Expo SDK + avant chaque soumission (CONVENTIONS §1) |
 | Privacy Manifests iOS (PrivacyInfo.xcprivacy) : manifests des SDK tiers (Sentry, PostHog, RevenueCat) + required-reason APIs vérifiés | Phase iOS uniquement, avant la 1ère soumission App Store |
 | Conformité billing (écran informatif sans mention de paiement, Afrique) | Audit manuel avant chaque release touchant le paywall (§BILLING_FLOW checklist §8) + grep CI automatisé des chaînes interdites (build rouge si détectées) |
+| Taille du build .aab ≤ 30 Mo (AJOUTÉ, audit technique 2026-07-25 — critère de succès PROJECT_BRIEF.md §3, jusqu'ici sans gate) | Vérification manuelle de la taille de l'artefact dans le rapport `eas build` avant chaque soumission Play Store — pas un gate CI automatisé (les builds EAS restent manuels, §5), mais une case de la checklist de soumission, chiffrée et non optionnelle |
+| Monitoring de succès des crons GDPR (`purge-soft-deleted.ts` J+90, `purge-deleted-accounts.ts` J+30) — AJOUTÉ, audit technique 2026-07-25 | Alerte Sentry si aucune exécution réussie loggée sur une fenêtre glissante (ex. 25h) — vérifiée au Bloc où ces crons sont livrés, pas seulement au moment de leur écriture initiale (détail LLD.md §2) |
+| Dependabot actif sur les deux repos (AJOUTÉ, audit technique 2026-07-25) | Vérifié une fois à la mise en place (`.github/dependabot.yml`), PRs de mise à jour traitées comme toute PR (CI + revue), pas un gate bloquant en soi |
 
 ---
 

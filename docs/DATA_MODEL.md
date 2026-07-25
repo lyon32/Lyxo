@@ -609,6 +609,41 @@ RLS (audit doc #23, defense-in-depth) : lecture/écriture réservées à
 de partage public (pas de champ `is_private` ici : c'est la valeur par
 défaut et unique, contrairement à `workouts`/`profiles`).
 
+⚠️ **AJOUT (audit technique 2026-07-25) — politique de stockage
+`photo_url` non négociable** : `physique_photos` est la donnée la plus
+sensible du schéma (photos corporelles) — la règle générique "Supabase
+Storage, URL signée" (ARCHITECTURE.md §2, composant Storage) doit
+s'appliquer ici de façon STRICTE, plus stricte que pour `stories` :
+- Bucket Supabase Storage **privé** (pas de lecture publique anonyme
+  possible même en devinant le chemin).
+- `photo_url` stocké en base = le CHEMIN objet dans le bucket, jamais une
+  URL signée pré-générée (elle expirerait) — l'API génère une URL signée
+  à la demande, **TTL court (5-15 min)**, à chaque lecture
+  (`GET /v1/physique-photos` retourne des URLs fraîches, pas celle de
+  l'upload).
+- Jamais d'URL permanente ni de cache CDN public sur ce bucket.
+
+### 2.24 `admin_audit_log` [SERVEUR] — AJOUTÉ (audit technique 2026-07-25)
+```sql
+-- Traçabilité des actions admin (`X-Admin-Key`, API_SPEC.md §1) — sans
+-- cette table, un accès admin (clé fuitée ou usage légitime) est
+-- indétectable a posteriori. Écriture obligatoire à CHAQUE route
+-- /v1/admin/* qui modifie une donnée (correction billing_region, review
+-- de signalement, action de support) — pas sur les lectures simples.
+create table admin_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  action text not null,               -- ex. 'billing_region_correction', 'report_reviewed'
+  target_profile_id uuid references profiles(id),
+  details jsonb,                       -- avant/après ou contexte (jamais de secret dedans)
+  created_at timestamptz not null default now()
+);
+create index idx_admin_audit_target on admin_audit_log(target_profile_id);
+```
+Pas de RLS (table serveur pure, jamais exposée à un client) — écrite
+uniquement par le middleware admin (`middlewares/` backend), lue
+uniquement via un accès direct DB (pas de route de consultation en V1,
+pas de besoin avant qu'un volume d'actions admin le justifie).
+
 ---
 
 ## 3. RELATIONSHIPS & CARDINALITY — résumé
@@ -659,6 +694,35 @@ défaut et unique, contrairement à `workouts`/`profiles`).
 - ⚠️ Discover public (Phase 8) : les tables `posts`/`comments` ne sont PAS
   encore spécifiées ici — c'est VOLONTAIRE. À spécifier dans ce document
   au début de la Phase 8, jamais improvisées en session.
+
+---
+
+## 4bis. SAUVEGARDE & REPRISE APRÈS SINISTRE (AJOUTÉ, audit technique 2026-07-25)
+
+> Rôle : jusqu'ici, la seule mention de sauvegarde était "export documenté
+> dans le message de commit avant un DROP destructif" (§4) — insuffisant
+> pour le critère de succès n°1 du produit ("zéro perte de donnée
+> signalée", PROJECT_BRIEF.md §3). Cette section devient la référence.
+
+- **PITR (Point-In-Time Recovery)** : activer le plan Supabase incluant
+  le PITR (disponible à partir du plan Pro) AVANT la Phase 7 (beta 10
+  coachs — c'est le moment où de vraies données existent et deviennent
+  irremplaçables). Rétention cible : au minimum 7 jours glissants.
+- **RPO/RTO cibles** (à formaliser, valeurs de départ raisonnables pour
+  un solo dev) : RPO ≤ 24h (perte maximale acceptable en cas de
+  restauration), RTO ≤ 4h (délai de restauration acceptable) — à revoir
+  à la hausse dès que le volume d'utilisateurs actifs le justifie.
+- **Test de restauration réel obligatoire avant Phase 7** : un exercice
+  de restauration purement théorique ne compte pas — restaurer une
+  branche Supabase de test à partir d'un point dans le passé et vérifier
+  l'intégrité des données restaurées, une fois, avant que des données
+  beta réelles existent. Documenter la date et le résultat ici.
+- **Migrations destructives** (`DROP COLUMN`/`DROP TABLE`) : la règle
+  existante (export documenté en commit) reste, mais s'ajoute au filet
+  PITR — elle ne le remplace pas.
+- Statut actuel : ⬜ non fait — action à réaliser avant Phase 7
+  (IMPLEMENTATION_PLAN.md), à cocher ici une fois le test de restauration
+  effectué.
 
 ---
 
