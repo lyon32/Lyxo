@@ -38,6 +38,11 @@
 - **Rôle admin** : un header séparé `X-Admin-Key` (secret serveur,
   jamais exposé au client) pour les routes `/v1/admin/*` — utilisées
   uniquement par toi via un outil interne, jamais par l'app mobile.
+  ⚠️ AJOUT (audit technique 2026-07-25) : toute route `/v1/admin/*` qui
+  MODIFIE une donnée écrit systématiquement une ligne dans
+  `admin_audit_log` (DATA_MODEL.md §2.24) via `admin.middleware.ts`
+  (LLD.md §1.2) — un secret statique unique sans journal d'audit rend
+  un accès (légitime ou via fuite) indétectable a posteriori.
 
 ---
 
@@ -359,6 +364,25 @@ sync. Les autres flags restent dans le payload de sync uniquement.
 ### 4.7 Gym Matching & Chat (ajouté, audit doc #14 — override V1 daté
 2026-07-24, voir LLD.md §6.8 / ROADMAP.md Phase 5bis pour la trace)
 
+#### `GET /v1/partners/candidates` (AJOUTÉ, audit technique 2026-07-25)
+> ⚠️ CORRECTION : `POST /v1/partners/swipes` ci-dessous exige un
+> `target_id`, mais jusqu'à cet ajout aucun endpoint ne fournissait de
+> liste de profils swipables — la feature Gym Matching était non
+> implémentable telle que spécifiée (trou de contrat, pas un détail).
+Auth requise. Query `?cursor=...`. → liste de profils candidats au swipe,
+format compact (`id`, `username`, `avatar_initials`, `gym`). Exclusions
+appliquées côté serveur, jamais côté client :
+- Le profil appelant lui-même.
+- Tout `target_id` déjà présent dans `partner_swipes` pour ce
+  `swiper_id` (non soft-deleted) — jamais reproposer un profil déjà
+  swipé (like ou reject).
+- Tout profil déjà `partners` (match existant) avec l'appelant.
+```json
+{ "data": [ { "id": "uuid", "username": "massalifts",
+    "avatar_initials": "ML", "gym": "Fitness Club Akwa" } ],
+  "next_cursor": null }
+```
+
 #### `POST /v1/partners/swipes` — Body `{ "target_id": "uuid", "direction": "like"|"reject" }`
 → `201`. Si `direction=like` ET un swipe inverse `(target_id, swiper_id,
 direction='like')` existe déjà → crée automatiquement une ligne
@@ -404,8 +428,29 @@ Performance). `taken_at` par défaut = `now()` côté serveur si non fourni.
 - `/v1/billing/checkout` : 5 tentatives / token / heure (anti-spam, §4.2bis).
 - `/v1/sync/push` : pas de limite dure, mais taille de batch plafonnée
   (protection mémoire serveur).
-- Toutes les autres routes user-facing : limite générale raisonnable
-  (à définir en Phase 3, pas critique en MVP à faible volume).
+- `/v1/profiles/check-username` : 20/min/IP (anti-énumération, §4.2).
+
+⚠️ **AJOUT (audit technique 2026-07-25) — routes sociales/chat sans
+limite chiffrée jusqu'ici**, alors que ces features sont déjà en scope V1
+(pas repoussables à "Phase 3, pas critique") : sans limite, une même
+route devient un vecteur d'abus direct (spam de messages, swipe massif/
+scraping de profils, signalements en rafale pour déclencher l'auto-hide
+à 3 reports, §S11/S12 SECURITY_NOTES). Limites minimales à implémenter
+via le `rate-limit.middleware.ts` déjà existant (pas besoin de Redis,
+limite en mémoire process suffit à ce volume) :
+- `POST /v1/reports` : 10/heure/user — au-delà, un signalement légitime
+  peut attendre, un flood ne doit pas pouvoir déclencher un auto-hide.
+- `POST /v1/conversations/:id/messages` : 60/heure/conversation/user —
+  généreux pour un usage normal, bloque un spam automatisé.
+- `POST /v1/partners/swipes` : 100/jour/user — un volume de swipe humain
+  raisonnable, empêche un script de scraper `GET /v1/partners/candidates`
+  en masse via des swipes automatisés.
+- `POST /v1/follows` : 50/heure/user — anti-spam de demandes de follow.
+
+Toutes les autres routes user-facing : limite générale raisonnable
+(seuil plus large à définir en Phase 3 selon le volume observé — les
+quatre limites ci-dessus, elles, sont un prérequis avant l'activation des
+features concernées, pas une amélioration différable).
 
 ---
 

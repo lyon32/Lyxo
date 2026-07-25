@@ -166,6 +166,11 @@ lyxo-api/
 │   │   └── revenuecat.service.ts   # ROADMAP Phase 9
 │   ├── middlewares/
 │   │   ├── auth.middleware.ts      # vérif JWT Supabase
+│   │   ├── admin.middleware.ts     # AJOUTÉ (audit technique 2026-07-25) :
+│   │   │                           #   vérif X-Admin-Key + écriture systématique
+│   │   │                           #   dans admin_audit_log (DATA_MODEL §2.24)
+│   │   │                           #   sur toute route /v1/admin/* qui modifie
+│   │   │                           #   une donnée — voir SECURITY_NOTES §1.1
 │   │   ├── error-handler.middleware.ts  # FORMAT D'ERREUR STANDARD (API_SPEC §2)
 │   │   └── rate-limit.middleware.ts
 │   ├── lib/
@@ -208,6 +213,23 @@ RIEN du contenu métier des tables (pas de règles PR ici) — c'est un pur
 mécanisme de transport de données, testé indépendamment de toute logique
 fitness.
 
+⚠️ **AJOUT (audit technique 2026-07-25) — retry/backoff obligatoire,
+symétrique au traitement déjà spécifié pour le billing** :
+`BILLING_FLOW.md §4.3bis` détaille une résilience réseau complète
+(verrou, polling, TTL) pour le checkout — `lib/sync/` n'avait aucune
+politique équivalente alors qu'il est désigné ici comme LE module le plus
+critique. Règle : tout pull/push qui échoue (5xx, `503
+PROVIDER_UNAVAILABLE`, timeout réseau) déclenche un retry avec backoff
+exponentiel borné (ex. 2s/4s/8s/16s, plafond 5 tentatives), puis abandon
+silencieux jusqu'au prochain déclencheur naturel (retour réseau détecté
+par `NetInfo`, prochain foreground) — jamais de boucle de retry infinie
+qui viderait la batterie/data. Un push interrompu EN COURS DE BATCH (pas
+juste avant l'envoi) doit reprendre sans dupliquer ni perdre d'entités —
+couvert par l'idempotence déjà en place (`local_id`, §API_SPEC 4.1) mais
+à tester explicitement (test de torture symétrique à celui du billing :
+mode avion → coupure mi-push → reprise → un seul état final cohérent,
+DoD Bloc C).
+
 **`lib/pr-detection.ts`** — Encode les 3 règles anti-triche (§18.1) :
 plafond de plausibilité, delta max, ancienneté. Frontière : pure function,
 zéro effet de bord, zéro appel réseau — prend un historique de sets en
@@ -243,6 +265,18 @@ métier typés en entrée/sortie.
 **`cron/` (backend)** — Tâches planifiées, chacune dans son fichier,
 chacune idempotente (relancer un cron deux fois ne double pas les
 effets — vérifie toujours l'état avant d'agir).
+
+⚠️ **AJOUT (audit technique 2026-07-25) — monitoring de succès
+obligatoire, pas seulement les erreurs** : `purge-soft-deleted.ts` (J+90)
+et `purge-deleted-accounts.ts` (J+30) exécutent une obligation RGPD, pas
+une simple tâche de maintenance — un échec SILENCIEUX (process qui ne
+démarre pas, redéploiement Render pendant la fenêtre cron, exception
+avalée) est une violation de conformité invisible jusqu'à un contrôle.
+Règle : chaque cron logge un `logger.info` de succès avec le nombre de
+lignes traitées à CHAQUE exécution (pas seulement `Sentry.captureException`
+sur échec) ; une alerte Sentry dédiée se déclenche si aucune exécution
+réussie n'est observée sur une fenêtre glissante (ex. 25h pour un cron
+quotidien) — un heartbeat, pas juste un try/catch.
 
 **`middlewares/error-handler.middleware.ts`** — LE seul endroit qui
 transforme une exception en réponse HTTP du format standard (API_SPEC
@@ -308,6 +342,27 @@ function resolveConflict<T extends SyncableRecord>(
   return remote.updatedAt >= local.updatedAt ? remote : local;
 }
 ```
+
+⚠️ **AJOUT (audit technique 2026-07-25) — garde-fou contre le clock skew
+client** : `updatedAt` ci-dessus est généré CÔTÉ CLIENT (WatermelonDB,
+DATA_MODEL.md convention §2). Un appareil du parc cible (Android
+d'occasion, horloge non synchronisée NTP) peut envoyer un `updatedAt`
+dans le futur ou fortement dérivé, ce qui ferait gagner silencieusement
+une donnée plus ancienne sur un autre appareil (scénario multi-device
+Lyxo+, PRICING.md §5) — contraire au critère de succès n°1 du produit
+("zéro perte de séance signalée"). Règle serveur, appliquée AVANT le LWW,
+côté `services/sync.service.ts` (backend, pas dans cette fonction pure
+qui reste un mécanisme client) :
+1. Comparer chaque `updatedAt` reçu au `server_timestamp` de la requête
+   (déjà présent dans le payload pull, API_SPEC.md §4.1).
+2. Si `updatedAt` dépasse `server_timestamp` de plus d'un seuil de
+   tolérance (ex. 5 minutes, horloges non parfaitement synchronisées
+   même sans dérive anormale) → clamper à `server_timestamp` avant
+   d'appliquer `resolveConflict`, et logger un `pino.warn` (pas bloquant,
+   juste un signal de dérive à surveiller).
+3. Test d'intégration dédié (TESTING.md §1.2) : horloge client
+   délibérément décalée de plusieurs jours dans le futur → la donnée la
+   plus récente RÉELLE (par temps serveur) ne doit jamais être écrasée.
 
 ### 3.3 Conversion d'unités (§19.15)
 ```typescript

@@ -67,10 +67,18 @@ LYXO utilise **3 environnements Supabase séparés, jamais interchangeables** :
 > staging faute de Docker local (§2.4 ci-dessous), l'environnement "Dev/
 > local" et l'environnement "Staging" partagent aujourd'hui la même base.
 > Ce n'est PAS un problème tant que Staging ne sert qu'au dev — ça le
-> devient dès que les 10 coachs beta sont dessus (Phase 7) : à ce moment,
-> séparer une branche Supabase dev dédiée devient nécessaire pour ne plus
-> jamais écrire de code expérimental contre les données des coachs réels.
-> Décision à formaliser avant Phase 7 si ce n'est pas déjà fait.
+> devient dès que les 10 coachs beta sont dessus (Phase 7).
+>
+> ⚠️ **GATE DUR (audit technique 2026-07-25) — ne plus traiter comme une
+> "nuance à formaliser un jour"** : créer une branche Supabase `dev`
+> dédiée (séparée de `staging`) est une **condition bloquante d'entrée en
+> Phase 7**, au même titre que les autres gates de `CICD.md` §4 — pas une
+> tâche de confort repoussable. Sans cette séparation, toute session de
+> développement (script de test, migration expérimentale, requête admin
+> manuelle) s'exécute directement contre les données réelles des 10
+> coachs beta, sans garde-fou technique. Action : créer la branche `dev`
+> AVANT la première installation d'un coach beta sur Internal Testing
+> (CICD.md §3.3), pas après.
 
 Variables dédiées à l'environnement Test-CI (distinctes des variables
 staging/prod existantes de §1.2) : `SUPABASE_TEST_URL`,
