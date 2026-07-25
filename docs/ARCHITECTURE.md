@@ -172,7 +172,7 @@ Security policies par défaut**. Conséquence directe sur l'autorité :
 | Brique | Choix | Pourquoi (raisonnement complet : CLAUDE.md §19.12 et alentours) |
 |---|---|---|
 | Framework mobile | **React Native + Expo** | WatermelonDB n'existe qu'en RN (socle offline-first) · vélocité solo sur stack déjà maîtrisé · Claude Code meilleur en React/TS. Flutter écarté malgré une perf brute légèrement supérieure sur bas de gamme (neutralisée par la discipline DoD). |
-| Base locale offline | **WatermelonDB** ⚠️ voir point ouvert #46 ci-dessous | Seul protocole de sync éprouvé pour RN ; réinventer un protocole soi-même serait la pire catégorie de bug possible pour un solo dev. |
+| Base locale offline | **WatermelonDB** ✅ compat New Arch validée par spike (voir #46 ci-dessous) | Seul protocole de sync éprouvé pour RN ; réinventer un protocole soi-même serait la pire catégorie de bug possible pour un solo dev. |
 | Styling | **NativeWind v4** | Tailwind connu (AdsFacile/MboaTV), compilation build-time (pas de coût runtime), meilleure génération de code par Claude Code. Tamagui (universel web+native inutile ici), Unistyles (perf extrême invisible sur des cards de données), twrnc (parsing runtime) écartés. |
 | Navigation | **expo-router** | Standard Expo actuel, file-based, basé sur react-navigation. |
 | Icônes | **lucide-react-native** | Exclusif — cohérence visuelle, bien connu de Claude Code. |
@@ -189,21 +189,47 @@ Security policies par défaut**. Conséquence directe sur l'autorité :
 | Push | **Expo Push** | Gratuit, intégré au stack Expo, suffisant (pas de besoin FCM direct). |
 | Exercices | **free-exercise-db** (provisoire) | ~800 exercices, licence Unlicense, importés une fois en base (`backend/scripts/import-exercises.ts`) — pas d'abonnement, pas de quota, images statiques (pas de GIFs animés). Bascule prévue vers **ExerciseDB Pro** (GIFs animés, catalogue plus riche) une fois l'abonnement acheté — migration = ré-import, le schéma `exercises` ne change pas. |
 
-> ⚠️ **POINT OUVERT #46 (audit doc, non encore vérifié)** : LYXO impose
-> Reanimated 4 / Expo SDK 57, qui **requièrent la New Architecture**
-> (Fabric + TurboModules) — elle n'est plus optionnelle sur ces
-> versions. La compatibilité de **WatermelonDB** avec la New Architecture
-> n'a PAS encore été validée par un test réel sur ce projet (JSI/
-> TurboModules, comportement des observables `withObservables` sous
-> Fabric). Tant que ce spike technique n'a pas été fait et son résultat
-> documenté ici, le choix WatermelonDB ci-dessus n'est **PAS** considéré
-> comme définitivement acté malgré le verrouillage général de ce
-> document — c'est une exception explicite et temporaire à la règle
-> "toute décision ici est FERMÉE" (§0 en tête de fichier). Action avant
-> Bloc C (LA SYNC, IMPLEMENTATION_PLAN.md) : build un écran minimal avec
-> WatermelonDB sur un Dev Build New Architecture activée, valider lecture/
-> écriture/observables, puis remplacer ce paragraphe par le résultat
-> (validé / lib de repli envisagée) au lieu de le supprimer.
+> ✅ **POINT OUVERT #46 — RÉSOLU / VALIDÉ (spike réalisé 2026-07-25)** :
+> LYXO impose Reanimated 4 / Expo SDK 57, qui **requièrent la New
+> Architecture** (Fabric + TurboModules) — elle n'est plus optionnelle.
+> La compatibilité de **WatermelonDB** avec la New Architecture a été
+> **testée sur un device Android réel** (Redmi spes, Android 13, Expo SDK
+> 57.0.8, RN 0.86, `@nozbe/watermelondb` 0.28, `newArchEnabled` par
+> défaut, Dev Build EAS). Résultat, sur un modèle jetable + un écran de
+> test :
+> - **Adapter SQLite JSI** (`new SQLiteAdapter({ jsi: true })`) : initialisé
+>   sous Fabric **sans erreur** (le point le plus à risque — JSI natif).
+> - **Écritures** (`database.write` → `.create` / `.update`) : OK.
+> - **Observables réactifs** (`withObservables` + `.query().observe()`) :
+>   l'UI se met à jour **automatiquement** à l'insert (0→1) ET à l'update
+>   (item passé à `MODIFIÉ-…`), sans refresh manuel.
+> - App bootée sans crash Fabric avec WatermelonDB embarqué.
+> **CONCLUSION : le choix WatermelonDB est désormais DÉFINITIVEMENT ACTÉ**
+> (fin de l'exception temporaire à la règle "toute décision FERMÉE"). Le
+> plan de repli qui était envisagé (`@op-engineering/op-sqlite` ou gel de
+> la New Architecture) n'a plus lieu d'être — conservé pour mémoire
+> uniquement si une régression apparaissait sur un futur upgrade SDK.
+>
+> ⚠️ **RECETTE DE CONFIG OBLIGATOIRE (issue du spike — à respecter au Bloc
+> C, non négociable, ces réglages ont coûté plusieurs heures à trouver)** :
+> 1. **`babel.config.js`** : ajouter **UNIQUEMENT**
+>    `['@babel/plugin-proposal-decorators', { legacy: true }]` dans
+>    `plugins`. ⚠️ NE PAS ajouter de `@babel/plugin-transform-class-
+>    properties` / `private-methods` explicites en `loose: true` :
+>    `babel-preset-expo` les fournit déjà en mode **spec** (`Object.
+>    defineProperty`), et forcer `loose` casse le code interne de RN New
+>    Arch (`Cannot assign to read-only property 'NONE'` dans `Event.js`).
+> 2. **`tsconfig.json`** : `"experimentalDecorators": true` +
+>    `"strictPropertyInitialization": false` (sinon `@field('x') x: string;`
+>    sans initialiseur échoue au typecheck). ⚠️ NE JAMAIS mettre
+>    d'initialiseur (`= ''`) sur un champ décoré `@field` : WatermelonDB le
+>    rejette au runtime ("Model field decorators must not be used on
+>    properties with a default value").
+> 3. **`newArchEnabled`** : laissé au défaut SDK 57 (activé). RAS.
+> 4. **Piège Metro** : `babel.config.js` fait `api.cache(true)` — après
+>    tout changement de config Babel, **tuer et relancer le process Metro**
+>    (`--clear`), pas seulement recharger l'app, sinon l'ancienne config
+>    reste figée en mémoire (source de faux diagnostics pendant le spike).
 
 ---
 
