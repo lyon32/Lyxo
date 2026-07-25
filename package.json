@@ -39,15 +39,15 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-decorators": "^7.29.7",
+    "@babel/plugin-proposal-decorators": "^8.0.2",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.3",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.0",
     "eslint-config-expo": "~57.0.0",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "tailwindcss": "^3.4.17",
-    "typescript": "~6.0.3"
+    "tailwindcss": "^4.3.3",
+    "typescript": "~7.0.2"
   },
   "scripts": {
     "start": "expo start",
