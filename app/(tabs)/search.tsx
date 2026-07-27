@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Search as SearchIcon, Users } from 'lucide-react-native';
 
+import { EmptyState } from '../../components/EmptyState';
 import { getDiscoverOptedIn, setDiscoverOptedIn } from '../../lib/search-storage';
 
 type SubTab = 'feed' | 'discover';
@@ -54,17 +55,17 @@ export default function SearchScreen() {
       </View>
 
       {activeTab === 'feed' ? (
-        <View className="flex-1 items-center justify-center pb-24">
-          <Text className="text-xl text-fg">{t('search.feed_empty_title')}</Text>
-          <Text className="mt-2 text-center text-muted">{t('search.feed_empty_subtitle')}</Text>
-        </View>
+        <EmptyState
+          title={t('search.feed_empty_title')}
+          description={t('search.feed_empty_subtitle')}
+        />
       ) : optedIn ? (
         <View className="flex-1">
           <Text className="mb-4 text-lg text-fg">{t('search.matches_title')}</Text>
-          <View className="flex-1 items-center justify-center pb-24">
-            <Text className="text-xl text-fg">{t('search.matches_empty_title')}</Text>
-            <Text className="mt-2 text-center text-muted">{t('search.matches_empty_subtitle')}</Text>
-          </View>
+          <EmptyState
+            title={t('search.matches_empty_title')}
+            description={t('search.matches_empty_subtitle')}
+          />
         </View>
       ) : (
         <View className="flex-1 items-center justify-center gap-4 pb-24">

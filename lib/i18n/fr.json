@@ -237,7 +237,7 @@
   "workout": {
     "active": {
       "title": "Séance",
-      "counter": "{{sets}} séries / {{exercises}} exercices",
+      "counter": "{{sets}} / {{exercises}}",
       "empty_title": "Aucun exercice",
       "empty_description": "Ajoute ton premier exercice pour commencer à enregistrer cette séance.",
       "add_exercise": "Ajouter un exercice",
@@ -245,7 +245,19 @@
       "add_selected": "Ajouter ({{count}})",
       "add_set": "+ Série",
       "set_label": "Série {{index}}",
-      "no_sets": "Aucune série"
+      "no_sets": "Aucune série",
+      "counter_sets_one": "{{count}} série",
+      "counter_sets_other": "{{count}} séries",
+      "counter_exercises_one": "{{count}} exercice",
+      "counter_exercises_other": "{{count}} exercices"
+    },
+    "input": {
+      "weight_label": "Poids",
+      "reps_label": "Reps"
+    },
+    "keyboard": {
+      "done": "Terminé",
+      "backspace": "Effacer"
     }
   }
 }

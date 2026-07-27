@@ -237,7 +237,7 @@
   "workout": {
     "active": {
       "title": "Workout",
-      "counter": "{{sets}} sets / {{exercises}} exercises",
+      "counter": "{{sets}} / {{exercises}}",
       "empty_title": "No exercises yet",
       "empty_description": "Add your first exercise to start logging this session.",
       "add_exercise": "Add Exercise",
@@ -245,7 +245,19 @@
       "add_selected": "Add ({{count}})",
       "add_set": "+ Set",
       "set_label": "Set {{index}}",
-      "no_sets": "No sets yet"
+      "no_sets": "No sets yet",
+      "counter_sets_one": "{{count}} set",
+      "counter_sets_other": "{{count}} sets",
+      "counter_exercises_one": "{{count}} exercise",
+      "counter_exercises_other": "{{count}} exercises"
+    },
+    "input": {
+      "weight_label": "Weight",
+      "reps_label": "Reps"
+    },
+    "keyboard": {
+      "done": "Done",
+      "backspace": "Delete"
     }
   }
 }

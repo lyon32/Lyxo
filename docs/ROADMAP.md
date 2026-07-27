@@ -311,9 +311,53 @@
   vérifié que **structurellement** (pas de `text-center` dans
   `EmptyState`), pas à l'œil — Maestro ne peut pas piloter l'appareil de
   test (voir la note de session sur INJECT_EVENTS).
-- [ ]  **2.4** Composant `WeightRepsInput` : blocs égaux kg|reps,
+- [X]  **2.4** Composant `WeightRepsInput` : blocs égaux kg|reps,
   steppers unit-aware (56px min), clavier custom sticky.
+  `components/logger/WeightRepsInput.tsx` : deux blocs `flex-1` stricts
+  (aucun des deux n'est secondaire), valeur en Inter Black 36px au-dessus
+  d'un label 14px (plancher correctif audit #13), bloc focus souligné
+  ember. Steppers ±2,5 kg / ±2.5-5 lbs volontairement **sans `flex-1`** :
+  en mode lbs il y a 4 boutons sur une demi-largeur et `flex-1` les
+  écraserait sous les 56px exigés — à taille fixe ils passent à la ligne.
+  Swipe vertical sur le bloc poids = ±1 cran (LYXO_UI_PROMPT, "in addition
+  to steppers"), via `Gesture.Pan` + `runOnJS`.
+  `components/logger/NumberKeyboard.tsx` : clavier sticky hors ScrollView
+  (il rétrécit la zone défilable au lieu de la recouvrir), touches ≥56px
+  mémoïsées, touche décimale **désactivée et non masquée** sur les reps
+  pour que la grille ne bouge pas d'un champ à l'autre.
+  **Le focus vit dans l'écran, pas dans la ligne** : plusieurs séries sont
+  affichées à la fois, une seule peut être en édition, et il ne doit
+  exister qu'un seul clavier sticky — `WeightRepsInput` est donc contrôlé.
+  Défilement automatique vers la série en cours d'édition (`measureLayout`
+  contre un repère `collapsable={false}` dans le contenu du ScrollView),
+  **conditionnel** : ne bouge que si la ligne n'est pas déjà entièrement
+  visible, défiler une ligne lisible serait sa propre gêne.
+  Branché dans `app/workout/active.tsx` : les lignes de série affichent la
+  saisie au lieu du "—" de 2.3.
+  ⚠️ **RÉSERVE — l'unité d'affichage est figée sur `kg`** (constante
+  `DISPLAY_UNIT` unique dans `active.tsx`) : `profiles.weight_unit` est
+  écrit à l'onboarding mais **jamais relu**, aucun store client ne
+  l'expose. `lib/units.ts` et le composant sont réellement unit-aware et
+  testés sur les deux unités, mais **le chemin lbs n'est pas exerçable
+  dans l'app** tant qu'un store ne porte pas la préférence. À traiter
+  quand un store de préférences existera.
+  Bug trouvé au test sur appareil et corrigé : le compteur affichait
+  "1 séries" — i18next ne pluralise qu'une variable `count` par clé, or
+  la chaîne en portait deux ; décomposé en clés pluralisables recomposées
+  (règle CLDR : "0 série" au singulier en fr, "0 sets" au pluriel en en).
 - [ ]  **2.5** `lib/units.ts` (conversion, formats FR/EN) + tests unitaires.
+  **Partiellement fait en 2.4**, qui en avait besoin pour être unit-aware :
+  `lib/units.ts` existe avec `KG_TO_LBS`, `formatWeight()`,
+  `stepperIncrement()`, `kgToLbs()`/`lbsToKg()` et `weightInputValue()`,
+  conformes aux signatures LLD §3.3, plus `lib/units.test.ts` (9 tests :
+  formats FR/EN, indépendance locale/unité, suppression du zéro décimal,
+  groupement des milliers, incréments par unité, aller-retour sans dérive).
+  **A mis en place le tout premier runner de test du projet** — `jest-expo`
+  + `@react-native/jest-preset` (peer dependency séparée depuis RN 0.86),
+  `npm test`, et `"types": ["jest"]` dans tsconfig sans quoi
+  `tsc --noEmit` échoue sur les fichiers de test. Débloque aussi 2.9 et
+  3.4. Reste pour 2.5 : les formats restants (volumes, durées ?) et
+  l'élargissement de la couverture si TESTING.md §1.1 le demande.
 - [ ]  **2.6** Migrations : `workouts`, `workout_exercises`, `sets` — tout
   offline dans WatermelonDB d'abord (pas encore de sync serveur).
 - [ ]  **2.7** Templates de séance / splits / rotation.

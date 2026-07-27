@@ -2,7 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    // Globales de Jest (describe/it/expect) dans les *.test.ts — sans ça
+    // `tsc --noEmit` échoue sur les fichiers de test alors que la suite passe.
+    "types": ["jest"]
   },
   "include": [
     "**/*.ts",

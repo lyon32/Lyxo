@@ -549,8 +549,23 @@ sont reconstruits à froid au démarrage.
 > toute l'app, pas au seul écran en cours de construction.
 
 **Pattern d'état vide (unique, app-wide).** Titre en gras + description en
-gris, **alignés à gauche**, aucune illustration, aucune icône, aucun CTA
-décoratif. Une seule forme pour tous les cas : "No logs yet", "No gym
+gris, **alignés à gauche** et **ancrés en haut** de la zone de contenu
+(sous le header, pas centrés verticalement), aucune illustration, aucune
+icône, aucun CTA décoratif. Implémentation unique :
+`components/EmptyState.tsx` — ne jamais réécrire ce bloc à la main dans
+un écran.
+
+> ⚠️ Le centrage vertical (`flex-1 items-center justify-center`) est
+> explicitement exclu : il donne à un écran normal l'allure d'une page
+> d'erreur ou d'un échec de chargement. L'état vide occupe la place que
+> le contenu occupera, donc il commence là où le contenu commencerait.
+
+**Ce qui n'est PAS un état vide** : un bloc d'opt-in, d'onboarding ou de
+promotion affiché à la place du contenu (ex. l'écran d'activation de
+Discover, `app/(tabs)/search.tsx`) — illustration, titre centré et CTA y
+sont volontaires. La distinction : un état vide *constate* une absence de
+données ; un bloc d'opt-in *demande une action* pour qu'il y en ait. Ne
+pas migrer les seconds vers `EmptyState`. Une seule forme pour tous les cas : "No logs yet", "No gym
 partners yet", "No notifications", onglets Recent/Custom du sheet Add
 Exercise (§6.5bis), feed vide, etc. Un état vide est un écran de
 production — c'est ce que voient les 10 coachs beta au premier lancement,

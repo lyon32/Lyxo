@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react-native';
 
+import { EmptyState } from '../components/EmptyState';
+
 export default function MessagesScreen() {
   const { t } = useTranslation();
 
@@ -15,9 +17,7 @@ export default function MessagesScreen() {
         <Text className="text-xl text-fg">{t('messages.header_title')}</Text>
       </View>
 
-      <View className="flex-1 items-center justify-center pb-16">
-        <Text className="text-xl text-fg">{t('messages.empty_title')}</Text>
-      </View>
+      <EmptyState title={t('messages.empty_title')} />
     </View>
   );
 }
