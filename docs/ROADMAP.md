@@ -250,20 +250,21 @@
 - [X]  **2.2** Migration : `custom_exercises` (limite 5 gratuit).
   `supabase/migrations/20260725140000_create_custom_exercises.sql` : table
   §2.4 + index partiel `where deleted_at is null` + trigger `set_updated_at`
+
   + RLS `auth.uid() = profile_id` (select/insert/update — pas de DELETE,
-  la suppression est un soft delete requis par le protocole de sync).
-  La limite de 5 est posée **en base** via `enforce_custom_exercise_limit()`
-  et non côté app comme DATA_MODEL §2.4 le prévoyait initialement (voir la
-  correction sur place) : le client écrivant en direct via RLS, une limite
-  applicative seule serait contournable avec la clé anon. Le "si gratuit"
-  passe par `has_active_premium()`, **aujourd'hui basée sur `trial_expires_at`
-  uniquement** — ⚠️ Phase 9 devra y ajouter le OR sur un abonnement actif
-  une fois `subscriptions` créée, sinon les abonnés Lyxo+ resteront bloqués
-  à 5 (PRICING.md : illimité en payant). Vérifié sur `lyxo`
-  (gyslysnysrswzefmvpxw) par un test transactionnel rollbacké couvrant les
-  6 cas : 5 OK, 6e bloqué, soft delete libère un emplacement, restauration
-  bloquée, premium lève la limite, retour gratuit re-bloque. Advisor
-  sécurité inchangé (seul le warning Auth préexistant subsiste).
+    la suppression est un soft delete requis par le protocole de sync).
+    La limite de 5 est posée **en base** via `enforce_custom_exercise_limit()`
+    et non côté app comme DATA_MODEL §2.4 le prévoyait initialement (voir la
+    correction sur place) : le client écrivant en direct via RLS, une limite
+    applicative seule serait contournable avec la clé anon. Le "si gratuit"
+    passe par `has_active_premium()`, **aujourd'hui basée sur `trial_expires_at`
+    uniquement** — ⚠️ Phase 9 devra y ajouter le OR sur un abonnement actif
+    une fois `subscriptions` créée, sinon les abonnés Lyxo+ resteront bloqués
+    à 5 (PRICING.md : illimité en payant). Vérifié sur `lyxo`
+    (gyslysnysrswzefmvpxw) par un test transactionnel rollbacké couvrant les
+    6 cas : 5 OK, 6e bloqué, soft delete libère un emplacement, restauration
+    bloquée, premium lève la limite, retour gratuit re-bloque. Advisor
+    sécurité inchangé (seul le warning Auth préexistant subsiste).
 - [X]  **2.3** Écran Workout Logger : structure de base (sélection
   exercice, ajout de séries) — sans encore la saisie poids/reps.
   `app/workout/active.tsx` : compteur "N séries / N exercices", cartes
@@ -272,8 +273,7 @@
   il n'y a qu'une séance en cours possible, sans id — `workout/[id].tsx`
   (détail d'une séance passée, LLD §6.3) se déclarera à côté sans
   collision. Route à plat : sans `app/workout/_layout.tsx`, expo-router
-  nomme l'écran `workout/active`, pas `workout` (un `<Stack.Screen
-  name="workout" />` déclenche un warning "No route named"). CTA
+  nomme l'écran `workout/active`, pas `workout` (un `<Stack.Screen name="workout" />` déclenche un warning "No route named"). CTA
   "Start Workout" de Home branché dessus (il n'avait aucun handler).
   **L'essentiel de la tâche est `components/ExercisePicker.tsx`** : le
   composant partagé imposé par LLD §6.5bis, qui sert les trois surfaces
@@ -291,6 +291,7 @@
   implémentation du pattern §6.0 (titre gras + description grise, aligné
   à GAUCHE, sans icône).
   ⚠️ **RÉSERVES — ne pas lire comme des bugs :**
+
   - **Aucune persistance** (ROADMAP 2.6) : les séries ajoutées vivent en
     state d'écran et disparaissent au kill de l'app. Attendu à ce stade.
   - **Recent** est un état vide tant que 2.6 n'a pas créé `workouts`/
@@ -304,13 +305,13 @@
     comme s'il faisait autorité.
   - Saisie poids/reps volontairement absente → 2.4 (`WeightRepsInput`) ;
     "+ Série" n'ajoute qu'une ligne numérotée vide.
-  Vérifié : `tsc --noEmit` et `eslint` verts, bundle Metro complet servi
-  (4330 modules), et sur appareil réel le golden path (3 exercices cochés
-  en une passe → "0 séries / 3 exercices", puis "+ Série" incrémentant le
-  compteur). L'alignement à gauche des états vides Recent/Custom n'a été
-  vérifié que **structurellement** (pas de `text-center` dans
-  `EmptyState`), pas à l'œil — Maestro ne peut pas piloter l'appareil de
-  test (voir la note de session sur INJECT_EVENTS).
+    Vérifié : `tsc --noEmit` et `eslint` verts, bundle Metro complet servi
+    (4330 modules), et sur appareil réel le golden path (3 exercices cochés
+    en une passe → "0 séries / 3 exercices", puis "+ Série" incrémentant le
+    compteur). L'alignement à gauche des états vides Recent/Custom n'a été
+    vérifié que **structurellement** (pas de `text-center` dans
+    `EmptyState`), pas à l'œil — Maestro ne peut pas piloter l'appareil de
+    test (voir la note de session sur INJECT_EVENTS).
 - [X]  **2.4** Composant `WeightRepsInput` : blocs égaux kg|reps,
   steppers unit-aware (56px min), clavier custom sticky.
   `components/logger/WeightRepsInput.tsx` : deux blocs `flex-1` stricts
@@ -353,21 +354,23 @@
   formats FR/EN, indépendance locale/unité, suppression du zéro décimal,
   groupement des milliers, incréments par unité, aller-retour sans dérive).
   **A mis en place le tout premier runner de test du projet** — `jest-expo`
+
   + `@react-native/jest-preset` (peer dependency séparée depuis RN 0.86),
-  `npm test`, et `"types": ["jest"]` dans tsconfig sans quoi
-  `tsc --noEmit` échoue sur les fichiers de test. Débloque aussi 2.9 et
-  3.4.
-  Cochée après vérification explicite des **4 cas exigés par TESTING.md
-  §1.1** — arrondis kg→lbs, formats FR/EN, steppers par unité, jamais de
-  dérive du kg stocké — tous couverts, et l'API correspond aux signatures
-  LLD §3.3.
-  **Délibérément PAS construit ici** : formatteurs de volume
-  (`total_volume_kg`) et de durée (`duration_secs`), et un `formatNumber`
-  exporté pour les prix FCFA ("3 500", jamais "3,500", LYXO_UI_PROMPT
-  §16). Les écrans qui les consomment n'existent pas encore — le volume
-  est calculé en 2.6+/2.11, la Performance est Phase 4, le paywall Phase
+    `npm test`, et `"types": ["jest"]` dans tsconfig sans quoi
+    `tsc --noEmit` échoue sur les fichiers de test. Débloque aussi 2.9 et
+    3.4.
+    Cochée après vérification explicite des **4 cas exigés par TESTING.md
+    §1.1** — arrondis kg→lbs, formats FR/EN, steppers par unité, jamais de
+    dérive du kg stocké — tous couverts, et l'API correspond aux signatures
+    LLD §3.3.
+    **Délibérément PAS construit ici** : formatteurs de volume
+    (`total_volume_kg`) et de durée (`duration_secs`), et un `formatNumber`
+    exporté pour les prix FCFA ("3 500", jamais "3,500", LYXO_UI_PROMPT
+    §16). Les écrans qui les consomment n'existent pas encore — le volume
+    est calculé en 2.6+/2.11, la Performance est Phase 4, le paywall Phase
+
   9. Le groupement des milliers par locale est déjà implémenté et testé
-  dans le formatteur privé, il suffira de l'exporter le moment venu.
+     dans le formatteur privé, il suffira de l'exporter le moment venu.
 - [X]  **2.6** Migrations : `workouts`, `workout_exercises`, `sets` — tout
   offline dans WatermelonDB d'abord (pas encore de sync serveur).
   Les DEUX schémas écrits côte à côte, en lisant DATA_MODEL §2.5-2.7, jamais
@@ -407,6 +410,7 @@
   et valeurs validées → écriture immédiate ; chiffres en cours de frappe →
   jamais. `useWorkoutStore` n'existe pas et ne doit pas être créé.
   ⚠️ **RÉSERVES :**
+
   - **Rebuild natif OBLIGATOIRE** — contrairement à 2.3/2.4 (JS pur), cette
     tâche fait entrer WatermelonDB dans l'app ; il n'était jusqu'ici que dans
     un spike jetable. L'APK du 24/07 ne contient aucune entrée WatermelonDB :
@@ -418,13 +422,13 @@
   - Le volet "follow actif" des policies de lecture (DATA_MODEL §2.5) attend
     la table `follows` en Phase 5 — d'ici là un profil privé n'est lisible
     que par lui-même, soit strictement moins permissif que la cible.
-  Vérifié : tsc, eslint, 15/15 tests.
+    Vérifié : tsc, eslint, 15/15 tests.
 - [ ]  **2.7** Templates de séance / splits / rotation.
 - [ ]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
   implémentation par TIMESTAMP persisté + notification locale
   programmée (PRD 1.2 : doit survivre au verrouillage d'écran/appel).
 - [ ]  **2.9** `lib/pr-detection.ts` + tests unitaires (règles §18.1
-  complètes : plausibilité, delta, ancienneté).
+  complètes : plausibilité, delta, ancienneté).11
 - [ ]  **2.10** Célébration PR (carte partageable, pas de photo).
 - [ ]  **2.11** Écran résumé fin de séance (peak-end).
 - [ ]  **2.12** DoD check : parcours complet testable en mode avion sur

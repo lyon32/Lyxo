@@ -13,22 +13,22 @@ export class Workout extends Model {
     workout_exercises: { type: 'has_many', foreignKey: 'workout_id' },
   } as const;
 
-  @text('profile_id') profileId!: string;
-  @text('title') title!: string | null;
-  @text('program_id') programId!: string | null;
+  @text('profile_id') profileId: string;
+  @text('title') title: string | null;
+  @text('program_id') programId: string | null;
 
-  @date('started_at') startedAt!: Date;
+  @date('started_at') startedAt: Date;
   // `null` tant que la séance est en cours — c'est ce champ qui distingue une
   // séance ouverte d'une séance terminée.
-  @date('completed_at') completedAt!: Date | null;
+  @date('completed_at') completedAt: Date | null;
 
-  @field('total_volume_kg') totalVolumeKg!: number | null;
-  @field('is_private') isPrivate!: boolean;
+  @field('total_volume_kg') totalVolumeKg: number | null;
+  @field('is_private') isPrivate: boolean;
 
-  @date('deleted_at') deletedAt!: Date | null;
+  @date('deleted_at') deletedAt: Date | null;
 
-  @readonly @date('created_at') createdAt!: Date;
-  @readonly @date('updated_at') updatedAt!: Date;
+  @readonly @date('created_at') createdAt: Date;
+  @readonly @date('updated_at') updatedAt: Date;
 
-  @children('workout_exercises') workoutExercises!: Query<WorkoutExercise>;
+  @children('workout_exercises') workoutExercises: Query<WorkoutExercise>;
 }

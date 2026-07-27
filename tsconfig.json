@@ -3,6 +3,16 @@
   "compilerOptions": {
     "strict": true,
     "experimentalDecorators": true,
+    // Requis par les models WatermelonDB (`db/models/`), dont les champs
+    // `@field`/`@text`/`@date` n'ont pas d'initialiseur : c'est le décorateur
+    // qui installe le getter/setter au runtime.
+    //
+    // ⚠️ Ne PAS "corriger" en remettant des assertions `!` : `tsc` les
+    // accepte, mais Babel — qui est ce qui compile réellement — les refuse sur
+    // un champ décoré ("Definitely assigned fields cannot be initialized here,
+    // but only in the constructor"). Le bundle Metro casse alors que le
+    // typecheck passe. Contrainte déjà identifiée par le spike 0950633.
+    "strictPropertyInitialization": false,
     // Globales de Jest (describe/it/expect) dans les *.test.ts — sans ça
     // `tsc --noEmit` échoue sur les fichiers de test alors que la suite passe.
     "types": ["jest"]

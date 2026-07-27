@@ -20,19 +20,19 @@ export class WorkoutExercise extends Model {
     sets: { type: 'has_many', foreignKey: 'workout_exercise_id' },
   } as const;
 
-  @text('workout_id') workoutId!: string;
+  @text('workout_id') workoutId: string;
   // Exactement un des deux est renseigné : référentiel `exercises` (§2.3) ou
   // exercice perso `custom_exercises` (§2.4).
-  @text('exercise_id') exerciseId!: string | null;
-  @text('custom_exercise_id') customExerciseId!: string | null;
+  @text('exercise_id') exerciseId: string | null;
+  @text('custom_exercise_id') customExerciseId: string | null;
 
-  @field('order_index') orderIndex!: number;
+  @field('order_index') orderIndex: number;
 
-  @date('deleted_at') deletedAt!: Date | null;
+  @date('deleted_at') deletedAt: Date | null;
 
-  @readonly @date('created_at') createdAt!: Date;
-  @readonly @date('updated_at') updatedAt!: Date;
+  @readonly @date('created_at') createdAt: Date;
+  @readonly @date('updated_at') updatedAt: Date;
 
-  @relation('workouts', 'workout_id') workout!: Relation<Workout>;
-  @children('sets') sets!: Query<WorkoutSet>;
+  @relation('workouts', 'workout_id') workout: Relation<Workout>;
+  @children('sets') sets: Query<WorkoutSet>;
 }

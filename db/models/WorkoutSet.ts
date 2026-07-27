@@ -20,21 +20,21 @@ export class WorkoutSet extends Model {
     workout_exercises: { type: 'belongs_to', key: 'workout_exercise_id' },
   } as const;
 
-  @text('workout_exercise_id') workoutExerciseId!: string;
-  @field('set_number') setNumber!: number;
+  @text('workout_exercise_id') workoutExerciseId: string;
+  @field('set_number') setNumber: number;
 
   // CANONIQUE en kg (§19.15) — jamais de lbs stockés, quelle que soit
   // l'unité d'affichage. La conversion vit dans `lib/units.ts`.
-  @field('weight_kg') weightKg!: number;
-  @field('reps') reps!: number;
-  @field('rpe') rpe!: number | null;
-  @field('is_completed') isCompleted!: boolean;
+  @field('weight_kg') weightKg: number;
+  @field('reps') reps: number;
+  @field('rpe') rpe: number | null;
+  @field('is_completed') isCompleted: boolean;
 
-  @date('deleted_at') deletedAt!: Date | null;
+  @date('deleted_at') deletedAt: Date | null;
 
-  @readonly @date('created_at') createdAt!: Date;
-  @readonly @date('updated_at') updatedAt!: Date;
+  @readonly @date('created_at') createdAt: Date;
+  @readonly @date('updated_at') updatedAt: Date;
 
   @relation('workout_exercises', 'workout_exercise_id')
-  workoutExercise!: Relation<WorkoutExercise>;
+  workoutExercise: Relation<WorkoutExercise>;
 }
