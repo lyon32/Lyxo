@@ -34,10 +34,11 @@
 - [X]  **1.1** Setup monorepo/2-repos, Expo TypeScript strict, ESLint/Prettier,
   i18next câblé (fichiers fr.json/en.json vides), NativeWind v4 recette
   exacte (tailwind 3.4.17, babel, metro, types) — écran de test Braise.
+
   + expo-router (layout (tabs) 5 onglets), lucide-react-native, CI
-  GitHub Actions (lint+typecheck sur PR). Repo app poussé sur
-  github.com/lyon32/Lyxo. Backend (Node/Express) reste à faire —
-  voir 1.3.
+    GitHub Actions (lint+typecheck sur PR). Repo app poussé sur
+    github.com/lyon32/Lyxo. Backend (Node/Express) reste à faire —
+    voir 1.3.
 
   **Déviation documentée (audit doc, trouvée non tracée à l'écrit)** :
   `react-native-reanimated` est en v4 (`^4.5.2`), pas v3 comme fixé par
@@ -78,7 +79,7 @@
   GRANT/REVOKE colonne par colonne). Advisor sécurité : 0 warning
   après durcissement (search_path + RPC publique sur les fonctions
   trigger).
-- [x] **1.5bis** Écrans langue (1bis) + Welcome/offline fusionné (1ter,
+- [X]  **1.5bis** Écrans langue (1bis) + Welcome/offline fusionné (1ter,
   photo hero réelle — PHOTO HERO EXCEPTION, UI prompt) + onboarding
   PRÉ-auth (Objectif 3 cards, Split PPL/UL/FB — UI prompt écran 2) :
   stockage AsyncStorage (`onboarding_goal`/`onboarding_split`, LLD §4).
@@ -87,14 +88,15 @@
   SelectableCard).tsx, gate racine (lib/use-onboarding-gate.ts,
   redirection depuis Accueil si langue jamais choisie), placeholder
   app/auth (réel à 1.6). Assets de marque réels utilisés (LX monogramme
+
   + wordmark LYXO blanc-sur-transparent, assets/brand/) — **PHOTO HERO
-  MANQUANTE** : l'écran Welcome n'a pas de vrai stock photo (jamais IA
-  générée par règle projet) — fond sombre uni en attendant qu'un vrai
-  asset soit fourni. Note poids : les 2 PNG de marque copiés (~650-730
-  Ko chacun) ne sont pas encore optimisés/recadrés (aucun outil image
-  dispo en session) — à revoir avant la mesure DoD "< 30 Mo à
-  l'installation" (PROJECT_BRIEF §3).
-- [x] **1.6** Auth : email + Google (Supabase Auth) — **Android V1 :
+    MANQUANTE** : l'écran Welcome n'a pas de vrai stock photo (jamais IA
+    générée par règle projet) — fond sombre uni en attendant qu'un vrai
+    asset soit fourni. Note poids : les 2 PNG de marque copiés (~650-730
+    Ko chacun) ne sont pas encore optimisés/recadrés (aucun outil image
+    dispo en session) — à revoir avant la mesure DoD "< 30 Mo à
+    l'installation" (PROJECT_BRIEF §3).
+- [X]  **1.6** Auth : email + Google (Supabase Auth) — **Android V1 :
   PAS d'Apple Sign-In** (Apple réservé au build iOS, phase
   ultérieure post-Android — PROJECT_BRIEF non-goal 10, décision
   fiche 9 comité, UI prompt écran 3). Écrans signup/login (UI prompt
@@ -126,12 +128,12 @@
   ⚠️ **Config manuelle Supabase Dashboard requise avant que l'auth
   fonctionne réellement** (aucune n'est faisable depuis une session
   headless) :
+
   1. `SUPABASE_SERVICE_ROLE_KEY` (Project Settings > API Keys) → env
      Render (`lyxo-api`) + `.env` local.
   2. Authentication > Providers > Google : activer + Client ID/Secret
      (Google Cloud Console) + redirect URI Supabase.
-  3. Authentication > URL Configuration : autoriser `lyxo://auth/
-     callback` et `lyxo://auth/reset-password`.
+  3. Authentication > URL Configuration : autoriser `lyxo://auth/ callback` et `lyxo://auth/reset-password`.
   4. Authentication > Providers > Email : désactiver "Confirm email"
      (PRD 3.1, confirmation désactivée en V1) — sinon signUp ne crée
      pas de session immédiate (géré côté code, `needsEmailConfirmation`,
@@ -177,14 +179,12 @@
   présence web sur lyxo.app (déjà listé comme devant exister,
   PROJECT_BRIEF non-goal 6 : "/reset/{token}"), pas encore construit.
   Tâche dédiée à créer, distincte de 1.6. **Confirmé par test ADB direct**
-  (`adb shell am start -a android.intent.action.VIEW -d "lyxo://auth/
-  reset-password?code=..."`) : l'écran réagit correctement à un deep
+  (`adb shell am start -a android.intent.action.VIEW -d "lyxo://auth/ reset-password?code=..."`) : l'écran réagit correctement à un deep
   link reçu (tentative d'échange, échec propre sur code invalide,
   écran "Link expired" + "Resend email" affiché, pas de crash) — le
   code app (app/auth/reset-password.tsx) est donc sain, seul le
   transport email→app via schéma personnalisé est en cause.
-- [x] **1.7** billing_region : détection pays déclaré + IP (`lib/
-  billing-region.ts` + intégration à l'onboarding), stockage serveur.
+- [X]  **1.7** billing_region : détection pays déclaré + IP (`lib/ billing-region.ts` + intégration à l'onboarding), stockage serveur.
 
   Fait : backend/src/lib/billing-region.ts (fonction pure,
   computeBillingRegion), backend/src/lib/geo-ip.ts (geoip-lite, offline,
@@ -213,7 +213,7 @@
   construction du client sur Node 20 (pas de WebSocket natif, requis
   seulement depuis Node 22, pour son sous-client Realtime jamais
   utilisé) — fourni `ws` en transport (lib/supabase-admin.ts).
-- [x]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
+- [X]  **1.8** Onboarding POST-auth (écran 2bis, UI prompt) : pays +
   unité kg/lbs, carte Data Saver, annonce règle 90 jours, pseudo
   avec suggestions (filtre §Q10). Suite visuelle sans jauge de
   progression (les 3 étapes construites en 1.5bis sont déjà
@@ -245,45 +245,25 @@
 
 ## PHASE 2 — LE LOGGER (Bloc B)
 
-- [x]  **2.1** Migration : `exercises` + import ExerciseDB (200 exos, FR
+- [X]  **2.1** Migration : `exercises` + import ExerciseDB (200 exos, FR
   traduit — relecture humaine échantillon 30) + pack 50 GIFs embarqués.
-
-  Fait : migration `create_exercises` (RLS `select_all` public, référentiel
-  lecture seule) + import réel via `backend/scripts/import-exercises.ts`
-  (source free-exercise-db/Unlicense en remplacement d'ExerciseDB Pro,
-  ARCHITECTURE.md §3) — **200 exercices, 50 pack embarqué, 200 GIFs**
-  générés (2 frames ping-pong via `lib/gif.ts`) + uploadés sur Supabase
-  Storage (`exercise-gifs`). Traductions FR : relecture humaine complète
-  (migration `review_exercise_names_fr`, needs_review=0). App :
-  `lib/exercises-store.ts` (chargement direct Supabase, en mémoire),
-  `lib/exercise-labels.ts` (slugs EN → clés i18n), composants
-  `ExerciseListItem`/`ExerciseDetailModal`/`MuscleFilterChips`, intégrés
-  dans `app/(tabs)/log.tsx`.
-
-  **Complété/corrigé le 2026-07-25 (reprise après audit)** :
-  1. **Réconciliation migrations** : `review_exercise_names_fr` avait été
-     appliquée en distant via le MCP sans fichier local → reconstituée à
-     l'identique en `supabase/migrations/20260723195534_...sql` (règle
-     source de vérité DATA_MODEL.md §4). ⚠️ Dette restante : les timestamps
-     des fichiers locaux ne matchent pas les versions distantes (remote
-     alimenté via `apply_migration` MCP, pas `db push`) — cosmétique tant
-     que l'apply reste MCP, à nettoyer si on repasse un jour à `db push`.
-  2. **`updated_at`** ajouté sur `exercises` (migration `20260725120000`,
-     appliquée) — la table doit le porter pour être pull-able (DATA_MODEL
-     §2.3 / API_SPEC §4.1) ; types régénérés (`backend/src/types/supabase.ts`).
-  3. **"Pack 50 GIFs embarqués" — décision revue** : bundler 50 GIFs animés
-     = ~14 Mo (moitié du budget < 30 Mo). À la place, embarqué **1 vignette
-     WebP statique légère par exo du pack** (240px, ~0,23 Mo au TOTAL pour
-     les 50) via `backend/scripts/generate-embedded-thumbs.ts` →
-     `assets/exercises/*.webp` + index de `require()` statiques
-     (`embedded-images.generated.ts`). L'app (`lib/exercise-image.ts`,
-     `embeddedThumbFor`) utilise la vignette locale (offline, zéro data)
-     dans la liste, et comme placeholder offline sous le GIF animé dans le
-     détail. Cohérent avec la logique Data Saver (CONVENTIONS §5.7).
-     ⚠️ Réserve : la LISTE d'exercices (métadonnées) reste chargée par
-     requête réseau Supabase — l'offline-first complet du référentiel
-     (seeding local) se décidera au Bloc C (sync), pas ici.
-- [ ]  **2.2** Migration : `custom_exercises` (limite 5 gratuit).
+- [X]  **2.2** Migration : `custom_exercises` (limite 5 gratuit).
+  `supabase/migrations/20260725140000_create_custom_exercises.sql` : table
+  §2.4 + index partiel `where deleted_at is null` + trigger `set_updated_at`
+  + RLS `auth.uid() = profile_id` (select/insert/update — pas de DELETE,
+  la suppression est un soft delete requis par le protocole de sync).
+  La limite de 5 est posée **en base** via `enforce_custom_exercise_limit()`
+  et non côté app comme DATA_MODEL §2.4 le prévoyait initialement (voir la
+  correction sur place) : le client écrivant en direct via RLS, une limite
+  applicative seule serait contournable avec la clé anon. Le "si gratuit"
+  passe par `has_active_premium()`, **aujourd'hui basée sur `trial_expires_at`
+  uniquement** — ⚠️ Phase 9 devra y ajouter le OR sur un abonnement actif
+  une fois `subscriptions` créée, sinon les abonnés Lyxo+ resteront bloqués
+  à 5 (PRICING.md : illimité en payant). Vérifié sur `lyxo`
+  (gyslysnysrswzefmvpxw) par un test transactionnel rollbacké couvrant les
+  6 cas : 5 OK, 6e bloqué, soft delete libère un emplacement, restauration
+  bloquée, premium lève la limite, retour gratuit re-bloque. Advisor
+  sécurité inchangé (seul le warning Auth préexistant subsiste).
 - [ ]  **2.3** Écran Workout Logger : structure de base (sélection
   exercice, ajout de séries) — sans encore la saisie poids/reps.
 - [ ]  **2.4** Composant `WeightRepsInput` : blocs égaux kg|reps,
@@ -338,6 +318,7 @@
   + export JSON (RGPD).
 
 ### Refonte UI/UX — brainstorm design référence (26 captures, 2026-07-24)
+
 Décisions détaillées : LLD.md §Redesign référence. Palette Braise inchangée
 — seuls structure/composants/copy sont adoptés depuis la référence.
 
@@ -423,16 +404,17 @@ Décisions détaillées : LLD.md §Redesign référence. Palette Braise inchang�
 ## PHASE 6 — COACH MODE V1 (Bloc F, chevauche Phase 5)
 
 > **Chevauchement avec Phase 5 expliqué** : 6.1 (migration `coach_clients`
+>
 > + attribut `is_coach`), 6.2 (génération invitation) et 6.3 (acceptation
-> invitation) n'ont **aucune dépendance technique réelle** sur Phase 5 —
-> `coach_clients` est une table indépendante du graphe de follow, et le
-> flux d'invitation coach ne lit ni le feed, ni les stories, ni le
-> leaderboard pour fonctionner. Ces 3 tâches peuvent démarrer dès que
-> Phase 4 est terminée, sans attendre Phase 5. 6.4-6.7 (programmes,
-> builder, dashboard coach) n'ont pas non plus de dépendance dure sur
-> Phase 5 ; elles sont séquencées après 6.1-6.3 pour une raison de flux
-> logique (un programme s'assigne à un client déjà lié via 6.1-6.3), pas
-> à cause d'un blocage technique.
+>   invitation) n'ont **aucune dépendance technique réelle** sur Phase 5 —
+>   `coach_clients` est une table indépendante du graphe de follow, et le
+>   flux d'invitation coach ne lit ni le feed, ni les stories, ni le
+>   leaderboard pour fonctionner. Ces 3 tâches peuvent démarrer dès que
+>   Phase 4 est terminée, sans attendre Phase 5. 6.4-6.7 (programmes,
+>   builder, dashboard coach) n'ont pas non plus de dépendance dure sur
+>   Phase 5 ; elles sont séquencées après 6.1-6.3 pour une raison de flux
+>   logique (un programme s'assigne à un client déjà lié via 6.1-6.3), pas
+>   à cause d'un blocage technique.
 
 - [ ]  **6.1** Migration `coach_clients` (many-to-many, limite 3
   Découverte) + attribut `is_coach` sur profiles.

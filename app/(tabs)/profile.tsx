@@ -1,6 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { router } from 'expo-router';
 
 import { useAuthStore } from '../../lib/auth-store';
 
@@ -10,9 +9,12 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const signOut = useAuthStore((s) => s.signOut);
 
+  // Pas de navigation explicite ici : useOnboardingGate ((tabs)/_layout.tsx)
+  // est l'unique source de vérité de navigation post-auth — il redirige déjà
+  // vers /auth dès que authStatus passe à 'signed-out' (audit doc : une
+  // double navigation vers deux routes différentes était redondante/fragile).
   const handleSignOut = async () => {
     await signOut();
-    router.replace('/auth/login');
   };
 
   return (

@@ -15,12 +15,6 @@ export default function WelcomeScreen() {
 
   return (
     <View className="flex-1 justify-between bg-bg px-6 py-16">
-      <View className="items-end">
-        <Pressable onPress={goNext}>
-          <Text className="text-muted">{t('onboarding.welcome.skip')}</Text>
-        </Pressable>
-      </View>
-
       <View className="gap-4">
         <View className="flex-row justify-center gap-2">
           <View className="h-2 w-2 rounded-full bg-ember" />

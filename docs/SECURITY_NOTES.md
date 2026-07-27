@@ -17,7 +17,7 @@
 | **User anonyme** (pas de JWT) | — | Rien, sauf : ouvrir `/v1/pay/:token` (auth par le token lui-même), déclencher un webhook signé (auth par signature prestataire) |
 | **User authentifié** | JWT Supabase valide | Lire/écrire SES PROPRES données ; lire les données PUBLIQUES d'autres profils (non privés, ou privés + follow approuvé) |
 | **Coach** (`is_coach=true`) | Attribut sur profiles, PAS un type de compte séparé (Q20) | Tout ce qu'un user authentifié peut, PLUS : créer des programmes, générer des invitations, voir les données des clients qui ont accepté son invitation |
-| **Admin** (toi) | Header `X-Admin-Key` séparé, jamais un JWT user | Routes `/v1/admin/*` : correction manuelle de `billing_region`, review de signalements, actions de support — jamais utilisé par l'app mobile. ⚠️ AJOUT (audit technique 2026-07-25) : toute action de modification via ce rôle est tracée dans `admin_audit_log` (DATA_MODEL.md §2.24) — un secret statique unique sans rotation planifiée (ENV_SETUP.md §1.7 ne couvre que la rotation réactive post-fuite) exige a minima cette traçabilité pour qu'un accès (légitime ou non) reste auditable a posteriori. |
+| **Admin** (toi) | Header `X-Admin-Key` séparé, jamais un JWT user | Routes `/v1/admin/*` : correction manuelle de `billing_region`, review de signalements, actions de support — jamais utilisé par l'app mobile. ⚠️ AJOUT (audit technique 2026-07-25) : toute action de modification via ce rôle est tracée dans `admin_audit_log` (DATA_MODEL.md §2.24). ⚠️ CORRECTION : la traçabilité est un constat *a posteriori*, jamais un substitut à la rotation — une clé partagée non tournante reste valide indéfiniment après une fuite. Prérequis obligatoires avant l'activation de la première route `/v1/admin/*`, détaillés en API_SPEC.md §1 : vérification **fail-closed** (clé serveur absente → 503, jamais d'accès libre), comparaison à **temps constant** (`crypto.timingSafeEqual`), clé **versionnée et tournée** (90 jours, ou immédiatement sur suspicion ; deux versions acceptées pendant 24 h de recouvrement ; version journalisée dans `admin_audit_log.details`), et procédure d'incident (révoquer puis relire le journal sur toute la période d'exposition). La non-rotation indéfinie n'est PAS un état acceptable ; cible de sortie : autorisation par identité à jetons courts. |
 
 ### 1.2 Règles précises par ressource
 
@@ -84,7 +84,7 @@ Toute donnée entrante (body, query, params) est validée **avant** d'atteindre 
 | S11 | Une story avec photo contient du contenu problématique | NSFW-check automatique à l'upload (§19.3) + auto-hide à 3 signalements + review manuelle (toi) sous 48h. Aucune photo ne s'affiche publiquement avant ce filtre initial. |
 | S12 | Un compte de test/reviewer (`is_reviewer=true`) pollue les statistiques publiques ou le leaderboard | Exclusion systématique des agrégats analytics ET du leaderboard/Discover dès la création du flag (vérifié dans les mêmes requêtes que le filtre `deleted_at is null`). |
 | S13 | Un script tente un brute-force sur `/auth/login` (mot de passe deviné par essais répétés) | **Pas de couche anti-brute-force additionnelle côté backend pour le MVP** — on s'appuie sur le rate limiting natif de Supabase Auth, qui protège par défaut les endpoints sign-in/sign-up/OTP par IP et par identifiant (configurable dans Dashboard > Authentication > Rate Limits ; valeurs par défaut Supabase de l'ordre de quelques dizaines de tentatives/heure selon l'endpoint — à vérifier dans le dashboard du projet, non modifiées pour le MVP). Réévaluer une couche applicative dédiée (ex. verrouillage progressif, CAPTCHA) uniquement si un abus réel est observé en beta (Sentry/logs), pas en anticipation. |
-| S14 (AJOUTÉ, audit technique 2026-07-25) | Un appareil du parc cible a une horloge locale dérivée/désynchronisée (fréquent sur Android d'occasion sans NTP fiable) — son `updated_at` de sync (généré client, WatermelonDB) peut se retrouver dans le futur ou fortement décalé | Le LWW ne doit jamais faire confiance aveuglément à `updated_at` client : clamp contre `server_timestamp` avant résolution de conflit si l'écart dépasse un seuil de tolérance (ex. 5 min), avec log `pino.warn` non bloquant — détail complet LLD.md §3.2. Sans ce garde-fou, un téléphone mal réglé peut écraser silencieusement une donnée plus récente sur un autre appareil (multi-device Lyxo+), contraire au critère de succès n°1 du produit. |
+| S14 (AJOUTÉ, audit technique 2026-07-25) | Un appareil du parc cible a une horloge locale dérivée/désynchronisée (fréquent sur Android d'occasion sans NTP fiable) — son `updated_at` de sync (généré client, WatermelonDB) peut se retrouver dans le futur ou fortement décalé | Le LWW ne doit jamais faire confiance aveuglément à `updated_at` client : clamp contre `server_timestamp` avant résolution de conflit si l'écart dépasse un seuil de tolérance (ex. 5 min), avec log `pino.warn` non bloquant — détail complet LLD.md §3.2. ⚠️ Le `server_timestamp` de référence est généré **à l'entrée de la requête côté serveur** (ou par la base) et n'est JAMAIS lu dans le payload client : un horodatage fourni par le client ne peut pas servir à contrôler un autre horodatage fourni par le même client — l'écart mesuré serait toujours nul et le garde-fou purement décoratif. Sans ce garde-fou, un téléphone mal réglé peut écraser silencieusement une donnée plus récente sur un autre appareil (multi-device Lyxo+), contraire au critère de succès n°1 du produit. |
 | S15 (AJOUTÉ, audit technique 2026-07-25) | Une photo NSFW passe le filtre automatique (`nsfwjs`, §19.3) — classifieur open-source avec un taux de faux négatifs connu, en particulier sur du contenu ambigu | Le filet de rattrapage humain (auto-hide à 3 signalements + review sous 48h, S11) reste la vraie ligne de défense — `nsfwjs` seul n'est PAS une garantie de conformité store. Acceptable à l'échelle beta (10 coachs) ; budgétiser une bascule vers une API de modération dédiée (Google Cloud Vision SafeSearch, AWS Rekognition) dès que le volume dépasse ce qu'une review manuelle à 48h peut absorber sereinement — ne pas attendre un incident de contenu pour ré-évaluer. |
 
 ---
@@ -153,7 +153,18 @@ DATA_MODEL.md §2.23) : bucket Supabase Storage privé (pas de lecture
 anonyme même en devinant le chemin), `photo_url` en base = chemin objet
 uniquement, URL signée générée à la demande avec TTL court (5-15 min) à
 chaque lecture — jamais d'URL permanente ni de cache CDN public sur ce
-bucket. Détail complet : DATA_MODEL.md §2.23.
+bucket. ⚠️ CORRECTION : le bucket privé protège le stockage, pas l'accès —
+c'est la **signature** qui accorde le droit de lire. Interdiction absolue
+de signer un chemin fourni par le client : l'API deviendrait un oracle
+(chemin d'autrui en entrée → URL valide en sortie) et le caractère privé
+du bucket ne servirait plus à rien. À CHAQUE lecture, sans exception :
+partir d'un `physique_photos.id`, charger la ligne, vérifier
+`profile_id = auth.uid()` ET `deleted_at is null`, puis ne signer que le
+chemin lu dans cette ligne — plus revérifier que le segment `{profile_id}`
+du chemin (`physique/{profile_id}/{photo_id}.{ext}`) égale `auth.uid()`,
+rejet dur sinon. Aucun cas légitime de signature pour autrui n'existe en
+V1 (pas de partage sur cette galerie). Détail complet : DATA_MODEL.md
+§2.23.
 
 ## 3ter. RGPD — BASE LÉGALE ANALYTICS (fiche 10 comité, ajout)
 - **Base légale PostHog (EU)** : intérêt légitime (analytics produit

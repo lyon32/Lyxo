@@ -66,6 +66,8 @@ export default Sentry.wrap(function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="auth" />
+          <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="messages" options={{ presentation: 'modal' }} />
         </Stack>
         <StatusBar style="light" />
       </SafeAreaProvider>

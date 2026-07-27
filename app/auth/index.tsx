@@ -41,6 +41,11 @@ export default function SignupScreen() {
   }, []);
 
   const handleSubmit = async () => {
+    if (usernameCheck.status === 'invalid') {
+      setError(t('auth.errors.invalid_username'));
+      return;
+    }
+
     setError(null);
     setLoading(true);
     const { error: signUpError, needsEmailConfirmation } = await signUpWithEmail(

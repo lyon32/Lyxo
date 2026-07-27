@@ -156,10 +156,26 @@ profilesRouter.patch(
       .update({ ...rest, ...(username !== undefined ? { username } : {}) })
       .eq('id', req.auth!.userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
+      // 23505 = unique_violation Postgres — le check-then-update ci-dessus
+      // n'est pas atomique, une collision concurrente sur `username` doit
+      // rester un 409 propre, jamais le message Postgres brut en 500
+      // (SECURITY_NOTES.md §4 : aucun détail d'implémentation au client).
+      if (error.code === '23505') {
+        next(new AppError('CONFLICT', 'Username already taken.'));
+        return;
+      }
       next(new AppError('INTERNAL_ERROR', error.message));
+      return;
+    }
+    // `.update()` sur un id sans ligne correspondante (profil manquant,
+    // ex. trigger handle_new_user jamais exécuté) ne lève pas d'erreur
+    // Postgres — `data` est simplement vide. `.single()` transformait ça
+    // en 500 générique illisible ; on distingue proprement le cas 404.
+    if (!data) {
+      next(new AppError('RESOURCE_NOT_FOUND', 'Profile not found.'));
       return;
     }
 
@@ -174,9 +190,9 @@ const billingRegionSchema = z.object({
 // PATCH /v1/profiles/me/billing-region — auth requise. billing_region est
 // calculé et stocké ICI, jamais accepté tel quel du client (BILLING_FLOW.md
 // §2 : pays déclaré prioritaire, IP en confirmation seulement, jamais
-// recalculé en douce après ce premier calcul à l'inscription). Le pays
-// DÉCLARÉ n'existe pas encore côté UI (écran country picker = ROADMAP 1.8) —
-// pour l'instant seul le signal IP est disponible en pratique.
+// recalculé en douce après ce premier calcul à l'inscription). Un appel
+// sans declared_country réutilise le country déjà en base (pas de retour
+// silencieux à l'IP seule sur un compte déjà déclaré).
 profilesRouter.patch(
   '/v1/profiles/me/billing-region',
   requireAuth,
@@ -197,8 +213,32 @@ profilesRouter.patch(
       return;
     }
 
+    const admin = getSupabaseAdmin();
+
+    // BILLING_FLOW.md §2 : billing_region est "immutable côté client" une
+    // fois déclaré — si le body n'apporte pas de nouveau pays, on réutilise
+    // le pays déjà stocké plutôt que de retomber sur l'IP seule (sinon un
+    // rejeu sans body écraserait silencieusement un billing_region déjà
+    // fixé par un pays déclaré avec un résultat purement IP, "recalculé en
+    // douce" — audit doc, bug confirmé).
+    const { data: existing, error: fetchError } = await admin
+      .from('profiles')
+      .select('country')
+      .eq('id', req.auth!.userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      next(new AppError('INTERNAL_ERROR', fetchError.message));
+      return;
+    }
+    if (!existing) {
+      next(new AppError('RESOURCE_NOT_FOUND', 'Profile not found.'));
+      return;
+    }
+
+    const effectiveCountry = declared_country ?? existing?.country ?? null;
     const ipCountry = lookupCountryFromIp(req.ip ?? '');
-    const { billingRegion, conflict } = computeBillingRegion(declared_country ?? null, ipCountry);
+    const { billingRegion, conflict } = computeBillingRegion(effectiveCountry, ipCountry);
 
     if (conflict) {
       logger.warn(
@@ -207,7 +247,7 @@ profilesRouter.patch(
       );
     }
 
-    const { data, error } = await getSupabaseAdmin()
+    const { data, error } = await admin
       .from('profiles')
       .update({
         billing_region: billingRegion,
@@ -215,10 +255,14 @@ profilesRouter.patch(
       })
       .eq('id', req.auth!.userId)
       .select('id, billing_region, country')
-      .single();
+      .maybeSingle();
 
     if (error) {
       next(new AppError('INTERNAL_ERROR', error.message));
+      return;
+    }
+    if (!data) {
+      next(new AppError('RESOURCE_NOT_FOUND', 'Profile not found.'));
       return;
     }
 

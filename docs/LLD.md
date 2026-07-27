@@ -171,6 +171,13 @@ lyxo-api/
 │   │   │                           #   dans admin_audit_log (DATA_MODEL §2.24)
 │   │   │                           #   sur toute route /v1/admin/* qui modifie
 │   │   │                           #   une donnée — voir SECURITY_NOTES §1.1
+│   │   │                           #   Contrat de vérification (API_SPEC §1) :
+│   │   │                           #   fail-closed si ADMIN_API_KEY absente (503
+│   │   │                           #   + erreur au boot), timingSafeEqual jamais
+│   │   │                           #   ===, clé versionnée v<n>.<secret> avec
+│   │   │                           #   2 versions acceptées pendant 24h lors
+│   │   │                           #   d'une rotation (90j ou sur suspicion),
+│   │   │                           #   version journalisée dans details.
 │   │   ├── error-handler.middleware.ts  # FORMAT D'ERREUR STANDARD (API_SPEC §2)
 │   │   └── rate-limit.middleware.ts
 │   ├── lib/
@@ -230,6 +237,47 @@ couvert par l'idempotence déjà en place (`local_id`, §API_SPEC 4.1) mais
 mode avion → coupure mi-push → reprise → un seul état final cohérent,
 DoD Bloc C).
 
+⚠️ CORRECTION : « couvert par l'idempotence » est insuffisant comme
+spécification — `local_id` garantit qu'un item rejoué ne crée pas de
+doublon, il ne dit RIEN de ce que le client a le droit de considérer
+comme acquis quand la réponse n'arrive jamais. C'est exactement le cas
+d'une coupure mi-batch, et c'est là que se perdent des séances (critère
+de succès n°1). Contrat explicite :
+
+1. **Idempotence par item, pas par batch.** La clé est le `local_id` de
+   chaque entité (UUID généré client à la création, jamais réattribué,
+   stable à travers les rejeux). Un rejeu du même `local_id` est un
+   no-op côté serveur, pas une erreur : réponse `200` avec l'état déjà
+   enregistré, jamais `409`.
+2. **Frontière transactionnelle serveur = le batch entier.** Un push est
+   appliqué dans UNE transaction : tout est commit, ou rien ne l'est. Pas
+   de commit partiel item par item — sinon une coupure laisse un état
+   serveur intermédiaire dont ni le client ni le serveur ne connaît le
+   contenu exact.
+3. **Le client n'avance son checkpoint qu'après un accusé de commit
+   confirmé.** L'accusé est la réponse HTTP du push, qui porte la liste
+   des `local_id` effectivement commis. Un timeout, une coupure réseau ou
+   un 5xx ne sont **jamais** interprétés comme un succès : le curseur
+   local reste où il était.
+4. **Reprise = rejouer le batch non accusé à l'identique.** Le client ne
+   tente pas de deviner ce qui est passé. Il renvoie les mêmes items ; le
+   point 1 garantit qu'un item déjà commis n'est pas dupliqué, le point 2
+   garantit qu'il n'y a pas d'état intermédiaire à réconcilier. Les items
+   déjà présents ressortent dans l'accusé, ce qui permet au client
+   d'avancer son checkpoint au tour suivant.
+5. **Le cas dangereux est le succès non accusé** : serveur commit, puis
+   la réponse se perd. Le client rejoue, croyant avoir échoué. Sans le
+   point 1, ce scénario duplique les séances ; c'est lui, et pas la
+   coupure avant commit, qui doit être testé en priorité.
+
+Tests dédiés (TESTING.md, DoD Bloc C) — les deux moments de coupure sont
+distincts et doivent être couverts séparément :
+- Coupure **avant** commit serveur → rien en base, le client rejoue, état
+  final = un exemplaire de chaque entité.
+- Coupure **après** commit serveur mais avant réception de la réponse →
+  déjà en base, le client rejoue quand même, état final = un exemplaire
+  de chaque entité (aucun doublon, aucune perte).
+
 **`lib/pr-detection.ts`** — Encode les 3 règles anti-triche (§18.1) :
 plafond de plausibilité, delta max, ancienneté. Frontière : pure function,
 zéro effet de bord, zéro appel réseau — prend un historique de sets en
@@ -277,6 +325,26 @@ lignes traitées à CHAQUE exécution (pas seulement `Sentry.captureException`
 sur échec) ; une alerte Sentry dédiée se déclenche si aucune exécution
 réussie n'est observée sur une fenêtre glissante (ex. 25h pour un cron
 quotidien) — un heartbeat, pas juste un try/catch.
+
+⚠️ PRÉCISION : un `logger.info` n'est pas un heartbeat — c'est une ligne
+de log, un événement qu'il faut avoir vu passer. Or le mode de panne à
+détecter est justement une **absence** d'événement (scheduler arrêté,
+conteneur non redémarré après déploiement) : rien ne s'écrit, donc rien
+ne déclenche d'alerte, et une supervision fondée sur des logs ou des
+exceptions reste silencieuse indéfiniment. Il faut un état **persistant**
+interrogeable :
+- Chaque job écrit, **à chaque exécution réussie**, une ligne d'état
+  durable (table `cron_heartbeats` : `job_name` en clé, `last_success_at`,
+  `rows_processed`, `duration_ms`) — dans la même transaction que son
+  travail, pour qu'un succès enregistré signifie bien un travail commis.
+- Un contrôle de **fraîcheur** séparé, qui ne dépend pas du job surveillé
+  (sinon il tombe avec lui), lit périodiquement cette table et lève une
+  alerte Sentry dédiée dès que `now() - last_success_at` dépasse la
+  fenêtre attendue : 25 h pour les crons quotidiens
+  (`purge-soft-deleted`, `purge-deleted-accounts`).
+- `rows_processed = 0` est une valeur normale (rien à purger ce jour-là)
+  et ne doit PAS alerter — l'alerte porte sur l'absence d'exécution, pas
+  sur l'absence de travail.
 
 **`middlewares/error-handler.middleware.ts`** — LE seul endroit qui
 transforme une exception en réponse HTTP du format standard (API_SPEC
@@ -353,8 +421,16 @@ Lyxo+, PRICING.md §5) — contraire au critère de succès n°1 du produit
 ("zéro perte de séance signalée"). Règle serveur, appliquée AVANT le LWW,
 côté `services/sync.service.ts` (backend, pas dans cette fonction pure
 qui reste un mécanisme client) :
-1. Comparer chaque `updatedAt` reçu au `server_timestamp` de la requête
-   (déjà présent dans le payload pull, API_SPEC.md §4.1).
+1. Comparer chaque `updatedAt` reçu au `server_timestamp` de la requête.
+   ⚠️ CORRECTION : ce `server_timestamp` est généré **à l'entrée de la
+   requête côté serveur** (ou par la base, `now()`), jamais lu dans le
+   payload de sync. Le champ homonyme d'API_SPEC.md §4.1 circule dans la
+   réponse *pull* (serveur → client, comme curseur de sync) ; le
+   réutiliser en le prenant dans le corps du *push* rendrait le garde-fou
+   inopérant — un client à l'horloge dérivée enverrait simplement un
+   `server_timestamp` aussi décalé que son `updatedAt`, et l'écart
+   mesuré serait toujours nul. La référence de comparaison ne doit
+   jamais provenir de la partie qu'elle sert à contrôler.
 2. Si `updatedAt` dépasse `server_timestamp` de plus d'un seuil de
    tolérance (ex. 5 minutes, horloges non parfaitement synchronisées
    même sans dérive anormale) → clamper à `server_timestamp` avant

@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_exercises: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          muscle_group: string | null
+          name: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          muscle_group?: string | null
+          name: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          muscle_group?: string | null
+          name?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_exercises_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           created_at: string
@@ -174,7 +212,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_active_premium: { Args: { p_profile_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

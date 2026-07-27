@@ -2,8 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "experimentalDecorators": true,
-    "strictPropertyInitialization": false
+    "experimentalDecorators": true
   },
   "include": [
     "**/*.ts",

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 
 import { AuthTextInput } from '../../components/AuthTextInput';
 import { CountryPickerModal } from '../../components/CountryPickerModal';
 import { apiFetch } from '../../lib/api-client';
+import { useAuthStore } from '../../lib/auth-store';
 import { computeBillingRegion } from '../../lib/compute-billing-region';
 import { CountryOption } from '../../lib/countries';
 import { hasProblematicTerm, suggestNeutralPseudo } from '../../lib/pseudo-filter';
@@ -19,6 +21,7 @@ type WeightUnit = 'kg' | 'lbs';
 // construction".
 export default function OnboardingDetailsScreen() {
   const { t } = useTranslation();
+  const signOut = useAuthStore((s) => s.signOut);
 
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [country, setCountry] = useState<CountryOption | null>(null);
@@ -49,6 +52,16 @@ export default function OnboardingDetailsScreen() {
       })
       .finally(() => setLoadingProfile(false));
   }, []);
+
+  // Écran atteint par un router.replace() depuis le gate ((tabs)/_layout.tsx,
+  // useOnboardingGate) — jamais empilé, donc pas d'historique à dépiler
+  // (goBackSafely ne s'applique pas ici). La seule sortie possible est de
+  // se déconnecter : /auth n'est pas sous (tabs), donc pas de redirection
+  // automatique post-signOut — on navigue explicitement.
+  const handleBack = async () => {
+    await signOut();
+    router.replace('/auth');
+  };
 
   const handleSubmit = async () => {
     if (!country) {
@@ -99,6 +112,10 @@ export default function OnboardingDetailsScreen() {
 
   return (
     <ScrollView className="flex-1 bg-bg" contentContainerClassName="gap-6 px-6 py-16">
+      <Pressable onPress={handleBack} disabled={submitting} hitSlop={12} className="self-start">
+        <ChevronLeft color="#F5F1EC" size={28} />
+      </Pressable>
+
       <View className="gap-1">
         <Text className="text-2xl text-fg">{t('onboarding.details.title')}</Text>
         <Text className="text-muted">{t('onboarding.details.subtitle')}</Text>

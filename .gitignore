@@ -38,6 +38,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# scripts d'import (cache dataset téléchargé + rapports générés)
+backend/scripts/.cache/
+backend/scripts/output/
+
 # generated native folders
 /ios
 /android

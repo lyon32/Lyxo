@@ -43,6 +43,27 @@
   `admin_audit_log` (DATA_MODEL.md §2.24) via `admin.middleware.ts`
   (LLD.md §1.2) — un secret statique unique sans journal d'audit rend
   un accès (légitime ou via fuite) indétectable a posteriori.
+  ⚠️ CORRECTION : le journal d'audit ne compense PAS l'absence de
+  rotation — il constate après coup, il n'empêche rien. Une clé partagée
+  non tournante reste valide indéfiniment après une fuite. Tant que
+  `X-Admin-Key` reste le mécanisme retenu (V1 — cible : autorisation par
+  identité à jetons courts, à trancher avant toute route admin exposée
+  hors usage personnel), les quatre contrôles suivants sont obligatoires
+  et conditionnent l'activation de la première route `/v1/admin/*` :
+  1. **Fail-closed** : `ADMIN_API_KEY` absente/vide côté serveur →
+     TOUTES les routes `/v1/admin/*` répondent `503` et le process logge
+     une erreur au boot. Jamais de dégradation en "accès libre".
+  2. **Comparaison à temps constant** (`crypto.timingSafeEqual` sur des
+     buffers de même longueur, jamais `===`) — sinon la clé est
+     récupérable octet par octet par mesure de latence.
+  3. **Clé versionnée et tournée** : format `v<n>.<secret>`, rotation
+     planifiée tous les 90 jours ET immédiate à toute suspicion. Le
+     serveur accepte deux versions simultanément pendant une fenêtre de
+     recouvrement de 24 h, puis rejette l'ancienne. La version utilisée
+     est journalisée dans `admin_audit_log.details`.
+  4. **Procédure d'incident** documentée (ENV_SETUP.md §1.7) : révoquer
+     d'abord, relire ensuite `admin_audit_log` sur toute la période
+     d'exposition pour établir ce qui a été touché.
 
 ---
 
@@ -377,6 +398,22 @@ appliquées côté serveur, jamais côté client :
   `swiper_id` (non soft-deleted) — jamais reproposer un profil déjà
   swipé (like ou reject).
 - Tout profil déjà `partners` (match existant) avec l'appelant.
+- ⚠️ CORRECTION : les exclusions ci-dessus (self / déjà swipé / déjà
+  matché) sont fonctionnelles, pas des règles de visibilité — elles ne
+  dispensent PAS d'appliquer §1.2 SECURITY_NOTES, sans quoi cet endpoint
+  devient un contournement des profils privés et des blocages. S'ajoutent
+  donc, toutes vérifiées côté serveur (RLS + filtre applicatif, double
+  verrou §1.3) :
+  - Tout profil soft-deleted (`deleted_at is not null`) ou en attente de
+    purge après suppression de compte (§18.5).
+  - Toute paire bloquée, dans les DEUX sens (bloqueur → bloqué et
+    bloqué → bloqueur) : un profil bloqué ne doit jamais réapparaître
+    dans un flux de swipe.
+  - Tout profil `is_private=true` SANS follow approuvé de l'appelant —
+    même règle de lecture que partout ailleurs (§1.2). Un profil privé
+    n'est donc pas swipable par défaut ; c'est volontaire.
+  - Tout profil `is_reviewer=true` (S12 SECURITY_NOTES, même filtre que
+    leaderboard/Discover).
 ```json
 { "data": [ { "id": "uuid", "username": "massalifts",
     "avatar_initials": "ML", "gym": "Fitness Club Akwa" } ],
@@ -436,8 +473,7 @@ limite chiffrée jusqu'ici**, alors que ces features sont déjà en scope V1
 route devient un vecteur d'abus direct (spam de messages, swipe massif/
 scraping de profils, signalements en rafale pour déclencher l'auto-hide
 à 3 reports, §S11/S12 SECURITY_NOTES). Limites minimales à implémenter
-via le `rate-limit.middleware.ts` déjà existant (pas besoin de Redis,
-limite en mémoire process suffit à ce volume) :
+via le `rate-limit.middleware.ts` déjà existant :
 - `POST /v1/reports` : 10/heure/user — au-delà, un signalement légitime
   peut attendre, un flood ne doit pas pouvoir déclencher un auto-hide.
 - `POST /v1/conversations/:id/messages` : 60/heure/conversation/user —
@@ -446,6 +482,29 @@ limite en mémoire process suffit à ce volume) :
   raisonnable, empêche un script de scraper `GET /v1/partners/candidates`
   en masse via des swipes automatisés.
 - `POST /v1/follows` : 50/heure/user — anti-spam de demandes de follow.
+
+⚠️ CORRECTION — **état partagé, pas mémoire process**. L'implémentation
+actuelle (`backend/src/middleware/rate-limit.ts`) garde une `Map` en
+mémoire du process et clé sur `req.ip`. Deux conséquences qui rendent les
+quotas ci-dessus fictifs s'ils sont posés tels quels :
+- Sur N instances, chaque instance compte séparément → quota réel = N × la
+  valeur annoncée. Idem après chaque redéploiement Render (compteurs
+  remis à zéro), et derrière un proxy où plusieurs users partagent une IP.
+- Les quotas ci-dessus sont **par user** et **par conversation**, pas par
+  IP — ils exigent une clé dérivée de `auth.uid()` (et de l'id de
+  conversation pour les messages), pas de `req.ip`.
+
+Règle : ces quatre routes ne s'activent qu'avec un compteur en **état
+partagé** (Redis, ou une table Postgres à fenêtre glissante — suffisant à
+ce volume, pas d'infra nouvelle à provisionner). À défaut, deux
+obligations cumulatives avant activation : (a) déploiement **verrouillé à
+une seule instance**, vérifié dans la config Render et pas seulement
+supposé ; (b) comportement **fail-closed** — si le magasin de compteurs
+est indisponible, la requête est rejetée (`503`), jamais laissée passer
+sans comptage. La mention "pas besoin de Redis, limite en mémoire process
+suffit" était une sous-estimation : elle vaut pour du confort anti-abus
+générique, pas pour des quotas qui portent une garantie de sécurité
+(auto-hide à 3 reports, §S11/S12).
 
 Toutes les autres routes user-facing : limite générale raisonnable
 (seuil plus large à définir en Phase 3 selon le volume observé — les

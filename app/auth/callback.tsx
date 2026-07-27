@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
 
 import { supabase } from '../../lib/supabase';
 
@@ -43,8 +44,7 @@ export default function AuthCallbackScreen() {
       if (session) {
         router.replace('/(tabs)');
       } else {
-        // Diagnostic temporaire — a retirer une fois le flow OAuth stabilise
-        console.error('exchangeCodeForSession failed:', error);
+        Sentry.captureException(error, { extra: { context: 'oauth_callback_exchange' } });
         setDebugMessage(error.message);
         setExchangeFailed(true);
       }

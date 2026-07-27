@@ -59,7 +59,7 @@ LYXO utilise **3 environnements Supabase séparés, jamais interchangeables** :
 
 | Environnement | Rôle | Qui la touche | Données |
 |---|---|---|---|
-| **Dev/local** | Développement quotidien (session Claude Code / machine locale) | Le dev, en continu | En l'absence de Docker local (§20.5/§19.9), cible aujourd'hui directement la branche staging — voir nuance ci-dessous |
+| **Dev/local** | Développement quotidien (session Claude Code / machine locale) | Le dev, en continu | En l'absence de Docker local (§20.5/§19.9), cible une base Supabase distante **`dev`** dédiée (§2.4) — jamais staging. Historiquement pointée sur staging : c'est cette dérive que le gate ci-dessous ferme |
 | **Test-CI (éphémère)** | Tests d'intégration automatisés (CICD §1.1 étape "tests d'intégration") | GitHub Actions uniquement, jamais déclenchée manuellement | **Reseedée avant CHAQUE run** (`scripts/seed-test-db.ts`, TESTING §3) — base jetable, aucun état ne s'accumule entre deux exécutions |
 | **Staging** | Sert aussi de terrain aux **10 coachs beta réels** (Phase 7) — PAS un environnement jetable | Alimentée par les migrations sur merge `main` (CICD §1.4/§2) | Données réelles des beta testeurs — **la CI ne doit JAMAIS exécuter de test dessus** (risque de pollution/perte de données réelles) |
 
@@ -76,9 +76,19 @@ LYXO utilise **3 environnements Supabase séparés, jamais interchangeables** :
 > tâche de confort repoussable. Sans cette séparation, toute session de
 > développement (script de test, migration expérimentale, requête admin
 > manuelle) s'exécute directement contre les données réelles des 10
-> coachs beta, sans garde-fou technique. Action : créer la branche `dev`
+> coachs beta, sans garde-fou technique. Action : créer la base `dev`
 > AVANT la première installation d'un coach beta sur Internal Testing
 > (CICD.md §3.3), pas après.
+>
+> Deux façons d'obtenir cette base `dev` — la séparation compte, le
+> mécanisme non : (a) un **second projet Supabase gratuit** `lyxo-dev`,
+> reconstruit depuis `supabase/migrations` via `supabase db push`
+> (0 $, aucune dépendance à un plan payant) ; (b) une **branche Supabase**
+> au sens strict, qui exige le plan Pro (branching non disponible en Free)
+> plus un coût horaire de compute. (a) est retenu : le branching apporte
+> un confort de workflow git, pas la garantie d'isolation recherchée ici.
+> Le gate est franchi dès que le dev ne peut plus écrire dans staging —
+> voir le garde-fou fail-closed en §2.4.
 
 Variables dédiées à l'environnement Test-CI (distinctes des variables
 staging/prod existantes de §1.2) : `SUPABASE_TEST_URL`,
@@ -169,11 +179,30 @@ Supabase MCP, Expo MCP, CodeRabbit (GitHub App).
 cd lyxo-api
 npm install supabase --save-dev
 npx supabase login
-npx supabase link --project-ref <ton-project-ref>
+npx supabase link --project-ref <ref-de-la-base-DEV>   # JAMAIS le ref staging
 npm run supabase:generate-types   # génère src/types/supabase.ts + prisma db pull
 ```
 Pas de Docker local (§20.5/§19.9) — les migrations et la génération de
-types ciblent la branche Supabase distante (staging).
+types ciblent donc une base Supabase distante. ⚠️ CORRECTION (audit
+technique 2026-07-25) : cette base est **`dev`, jamais `staging`**. Le
+`--project-ref` ci-dessus, `npm run supabase:generate-types`,
+`supabase db push` et toute requête manuelle de session de dev pointent
+sur `dev` — staging porte les données réelles des 10 coachs beta (§1.4)
+et n'est alimentée que par la CI sur merge `main` (CICD §1.4/§2), jamais
+depuis une machine de dev.
+
+**Garde-fou fail-closed** (les instructions seules ne suffisent pas — un
+copier-coller de ref suffit à taper en prod) :
+- `scripts/guard-supabase-target.ts`, appelé en `pre` de tout script npm
+  qui écrit ou génère (`supabase:generate-types`, `supabase:push`,
+  `seed:*`) : lit le ref lié (`supabase/.temp/project-ref`) et **échoue
+  si ce ref est celui de staging ou de prod**, avec un message explicite.
+  Un ref inconnu échoue aussi (fail-closed, pas de liste noire seule).
+- La `SUPABASE_SERVICE_ROLE_KEY` de staging/prod ne vit **pas** sur la
+  machine de dev : uniquement dans les secrets Render et GitHub Actions.
+  C'est ce qui rend l'erreur impossible plutôt qu'improbable.
+- Idem pour le serveur MCP Supabase d'une session Claude Code : pointé
+  sur `dev`, ou en lecture seule.
 
 ### 2.5 Lancer l'app
 ```bash

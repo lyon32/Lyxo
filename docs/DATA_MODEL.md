@@ -196,7 +196,17 @@ create table custom_exercises (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
--- Contrainte applicative (pas SQL) : max 5 par profile_id si gratuit
+-- Max 5 par profile_id si gratuit. ⚠️ CORRECTION (ROADMAP 2.2) : la règle
+-- était documentée comme "applicative (pas SQL)" par parallèle avec devices
+-- (§2.2), mais le raisonnement ne tient pas ici — ce qui est écarté sur
+-- devices c'est un index UNIQUE, non levable dynamiquement. Un TRIGGER l'est,
+-- lui : `enforce_custom_exercise_limit()` interroge `has_active_premium()` à
+-- chaque insert. Posée en base parce que le client écrit en direct via RLS
+-- (limite côté app seule = contournable avec la clé anon), et parce qu'un
+-- trigger s'applique aussi aux écritures service_role du backend — qui
+-- bypassent RLS mais pas les triggers, donc couvre le push de sync (Phase 3).
+-- Les lignes soft-deleted ne comptent pas ; une restauration (deleted_at
+-- repassé à NULL) reconsomme un emplacement.
 ```
 RLS (audit doc #23, defense-in-depth) : lecture/écriture réservées à
 `profile_id = auth.uid()` — jamais visible par un tiers, même en
@@ -622,6 +632,26 @@ s'appliquer ici de façon STRICTE, plus stricte que pour `stories` :
   (`GET /v1/physique-photos` retourne des URLs fraîches, pas celle de
   l'upload).
 - Jamais d'URL permanente ni de cache CDN public sur ce bucket.
+- ⚠️ CORRECTION : un bucket privé + TTL court ne protège que le
+  *stockage*. C'est l'acte de **signer** qui accorde l'accès — signer un
+  chemin fourni par le client reviendrait à transformer l'API en oracle
+  de déchiffrement du bucket (envoyer le chemin d'autrui → recevoir une
+  URL valide). Contrat obligatoire, à CHAQUE signature, sans exception :
+  1. **Autorisation par la ligne, jamais par le chemin.** Le serveur part
+     d'un `physique_photos.id`, charge la ligne, vérifie
+     `profile_id = auth.uid()` et `deleted_at is null`, et ne signe que
+     le `photo_url` lu DANS cette ligne. Un chemin transmis par le client
+     n'est jamais signé, même s'il "a l'air" correct.
+  2. **Chemin déterministe et lié au profil** :
+     `physique/{profile_id}/{photo_id}.{ext}`, `profile_id` et `photo_id`
+     générés serveur. À l'upload comme à la lecture, le serveur revérifie
+     que le segment `{profile_id}` du chemin égale `auth.uid()` — un
+     rejet dur, pas une normalisation silencieuse (défense en profondeur
+     si une ligne était corrompue).
+  3. Aucune traversée possible : chemin validé contre cette forme exacte
+     (UUID/UUID), pas par filtrage de `..`.
+  Ces photos n'ont **aucun mode de partage** en V1 : il n'existe pas de
+  cas légitime où `profile_id != auth.uid()` produit une signature.
 
 ### 2.24 `admin_audit_log` [SERVEUR] — AJOUTÉ (audit technique 2026-07-25)
 ```sql
@@ -633,7 +663,17 @@ s'appliquer ici de façon STRICTE, plus stricte que pour `stories` :
 create table admin_audit_log (
   id uuid primary key default gen_random_uuid(),
   action text not null,               -- ex. 'billing_region_correction', 'report_reviewed'
-  target_profile_id uuid references profiles(id),
+  -- ON DELETE SET NULL : sans ça, la purge d'un compte à J+30 (§18.5)
+  -- se heurte à cette FK — soit la purge échoue (obligation RGPD non
+  -- tenue), soit on supprime les lignes d'audit avec le profil, ce qui
+  -- efface précisément la trace des actions admin sur ce compte. Le
+  -- journal doit survivre au profil qu'il documente.
+  target_profile_id uuid references profiles(id) on delete set null,
+  -- L'identifiant purgé reste lisible ici (ex. { "target_profile_id":
+  -- "<uuid>" }) : écrit à CHAQUE entrée, il conserve la traçabilité même
+  -- après le passage à NULL de la colonne ci-dessus. C'est un
+  -- identifiant technique, pas une donnée personnelle réidentifiante
+  -- une fois le profil purgé.
   details jsonb,                       -- avant/après ou contexte (jamais de secret dedans)
   created_at timestamptz not null default now()
 );
