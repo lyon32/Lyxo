@@ -14,7 +14,7 @@
     "generate:embedded-thumbs": "tsx scripts/generate-embedded-thumbs.ts"
   },
   "dependencies": {
-    "@sentry/node": "^9.15.0",
+    "@sentry/node": "^10.68.0",
     "@supabase/supabase-js": "^2.109.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
