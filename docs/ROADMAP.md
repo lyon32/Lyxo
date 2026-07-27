@@ -345,8 +345,8 @@
   "1 séries" — i18next ne pluralise qu'une variable `count` par clé, or
   la chaîne en portait deux ; décomposé en clés pluralisables recomposées
   (règle CLDR : "0 série" au singulier en fr, "0 sets" au pluriel en en).
-- [ ]  **2.5** `lib/units.ts` (conversion, formats FR/EN) + tests unitaires.
-  **Partiellement fait en 2.4**, qui en avait besoin pour être unit-aware :
+- [X]  **2.5** `lib/units.ts` (conversion, formats FR/EN) + tests unitaires.
+  **Fait pendant 2.4**, qui en avait besoin pour être unit-aware :
   `lib/units.ts` existe avec `KG_TO_LBS`, `formatWeight()`,
   `stepperIncrement()`, `kgToLbs()`/`lbsToKg()` et `weightInputValue()`,
   conformes aux signatures LLD §3.3, plus `lib/units.test.ts` (9 tests :
@@ -356,8 +356,18 @@
   + `@react-native/jest-preset` (peer dependency séparée depuis RN 0.86),
   `npm test`, et `"types": ["jest"]` dans tsconfig sans quoi
   `tsc --noEmit` échoue sur les fichiers de test. Débloque aussi 2.9 et
-  3.4. Reste pour 2.5 : les formats restants (volumes, durées ?) et
-  l'élargissement de la couverture si TESTING.md §1.1 le demande.
+  3.4.
+  Cochée après vérification explicite des **4 cas exigés par TESTING.md
+  §1.1** — arrondis kg→lbs, formats FR/EN, steppers par unité, jamais de
+  dérive du kg stocké — tous couverts, et l'API correspond aux signatures
+  LLD §3.3.
+  **Délibérément PAS construit ici** : formatteurs de volume
+  (`total_volume_kg`) et de durée (`duration_secs`), et un `formatNumber`
+  exporté pour les prix FCFA ("3 500", jamais "3,500", LYXO_UI_PROMPT
+  §16). Les écrans qui les consomment n'existent pas encore — le volume
+  est calculé en 2.6+/2.11, la Performance est Phase 4, le paywall Phase
+  9. Le groupement des milliers par locale est déjà implémenté et testé
+  dans le formatteur privé, il suffira de l'exporter le moment venu.
 - [ ]  **2.6** Migrations : `workouts`, `workout_exercises`, `sets` — tout
   offline dans WatermelonDB d'abord (pas encore de sync serveur).
 - [ ]  **2.7** Templates de séance / splits / rotation.
