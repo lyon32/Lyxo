@@ -368,8 +368,57 @@
   est calculé en 2.6+/2.11, la Performance est Phase 4, le paywall Phase
   9. Le groupement des milliers par locale est déjà implémenté et testé
   dans le formatteur privé, il suffira de l'exporter le moment venu.
-- [ ]  **2.6** Migrations : `workouts`, `workout_exercises`, `sets` — tout
+- [X]  **2.6** Migrations : `workouts`, `workout_exercises`, `sets` — tout
   offline dans WatermelonDB d'abord (pas encore de sync serveur).
+  Les DEUX schémas écrits côte à côte, en lisant DATA_MODEL §2.5-2.7, jamais
+  de mémoire : `supabase/migrations/20260727120000_create_workout_tables.sql`
+  (appliqué sur `lyxo`, advisor sécurité inchangé) et `db/schema.ts`.
+  `numeric(10,2)` / `numeric(8,2)` posés **dès la création** plutôt que par
+  un ALTER post-hoc (CLAUDE_LYXO_V3 §17bis.2, "avant le premier insert") —
+  en float, 82.5 × 3 donne 247.50000000000003.
+  **Le vrai risque de la tâche était la dérive silencieuse** : les tables
+  Postgres sont inertes jusqu'à la Phase 3, donc rien n'aurait signalé un
+  écart. Deux parades : une table de correspondance colonne par colonne en
+  tête de `db/schema.ts`, et surtout `db/schema.test.ts`, qui compare le
+  schéma local aux types Postgres GÉNÉRÉS depuis la vraie base et échoue dès
+  que l'un bouge sans l'autre. Garde-fou vérifié en le faisant échouer
+  volontairement (colonne `reps` rendue optionnelle) avant de le garder.
+  Deux écarts STRUCTURELS non corrigeables, documentés : WatermelonDB n'a que
+  string/number/boolean (la précision `numeric` n'est garantie que côté
+  serveur — le volume devra être réarrondi au push), et les CHECK n'y
+  existent pas (l'invariant "au moins un id d'exercice" et le RPE 1-10 sont
+  tenus par le code, sinon le push Phase 3 sera rejeté pour des lignes déjà
+  écrites en local).
+  Écran branché (`db/use-active-workout.ts` + `app/workout/active.tsx`) :
+  la séance survit au kill de l'app. Rechargement réactif via
+  `withChangesForTables`, qui émet à la souscription (`startWith(null)`,
+  vérifié dans la source) — un seul chemin de chargement, pas de `setState`
+  synchrone dans un effet. Reprendra sans changement les écritures de la
+  sync en Phase 3.
+  **Onglet Recent allumé** (`db/use-recent-exercises.ts`) — lève la première
+  réserve inscrite sous 2.3.
+  ⚠️ **Contradiction LLD §4 corrigée sur place** : son tableau rangeait la
+  séance en cours dans un Zustand "éphémère", alors que la règle de frontière
+  juste en dessous dit qu'une donnée devant survivre à un crash vit dans
+  WatermelonDB. La règle l'emporte — perdre une séance parce qu'Android a tué
+  l'app en arrière-plan est rédhibitoire sur le marché d'entrée. Le motif du
+  tableau ("ne pas écrire à chaque tap") visait le mauvais niveau : c'est le
+  TAMPON DE FRAPPE du clavier qui reste en mémoire, pas la série. Structure
+  et valeurs validées → écriture immédiate ; chiffres en cours de frappe →
+  jamais. `useWorkoutStore` n'existe pas et ne doit pas être créé.
+  ⚠️ **RÉSERVES :**
+  - **Rebuild natif OBLIGATOIRE** — contrairement à 2.3/2.4 (JS pur), cette
+    tâche fait entrer WatermelonDB dans l'app ; il n'était jusqu'ici que dans
+    un spike jetable. L'APK du 24/07 ne contient aucune entrée WatermelonDB :
+    sans rebuild, l'app crashe à l'import.
+  - Le **référentiel d'exercices reste réseau** (store Zustand, pas
+    WatermelonDB) : au premier lancement hors ligne, les séries persistées
+    s'affichent mais sans nom d'exercice (repli explicite, jamais de ligne
+    masquée). Sa mise en cache locale relève de la Phase 3.
+  - Le volet "follow actif" des policies de lecture (DATA_MODEL §2.5) attend
+    la table `follows` en Phase 5 — d'ici là un profil privé n'est lisible
+    que par lui-même, soit strictement moins permissif que la cible.
+  Vérifié : tsc, eslint, 15/15 tests.
 - [ ]  **2.7** Templates de séance / splits / rotation.
 - [ ]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
   implémentation par TIMESTAMP persisté + notification locale

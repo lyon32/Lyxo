@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState } from './EmptyState';
 import { ExerciseListItem } from './ExerciseListItem';
 import { MuscleFilterChips } from './MuscleFilterChips';
+import { useRecentExerciseIds } from '../db/use-recent-exercises';
 import { muscleGroupI18nKey } from '../lib/exercise-labels';
 import { type Exercise, useExercisesStore } from '../lib/exercises-store';
 
@@ -89,11 +90,13 @@ export function ExercisePicker({ selection, onPressExercise }: ExercisePickerPro
           onPressExercise={onPressExercise}
         />
       ) : activeTab === 'recent' ? (
-        // Aucune source de données possible avant ROADMAP 2.6 (`workouts`/
-        // `workout_exercises`/`sets`) — état vide §6.0, pas un onglet masqué.
-        <EmptyState
-          title={t('exercises.recent_empty_title')}
-          description={t('exercises.recent_empty_description')}
+        // Alimenté depuis ROADMAP 2.6 par l'historique local des séances
+        // (`workout_exercises`) — l'état vide ne subsiste que tant qu'aucune
+        // séance n'a été loggée.
+        <RecentTab
+          exercises={exercises}
+          selection={selection}
+          onPressExercise={onPressExercise}
         />
       ) : (
         // Lira `custom_exercises` (DATA_MODEL §2.4, table créée en ROADMAP
@@ -189,6 +192,61 @@ function AllTab({
         />
       )}
     </View>
+  );
+}
+
+interface RecentTabProps {
+  exercises: Exercise[];
+  selection?: ExercisePickerProps['selection'];
+  onPressExercise?: (exercise: Exercise) => void;
+}
+
+// Ni recherche ni chips ici : la liste est courte et déjà ordonnée par
+// fraîcheur d'usage — la filtrer casserait justement ce qui en fait l'intérêt.
+function RecentTab({ exercises, selection, onPressExercise }: RecentTabProps) {
+  const { t } = useTranslation();
+  const { ids, ready } = useRecentExerciseIds();
+
+  // L'ordre vient de l'historique, pas du référentiel : on résout les ids
+  // dans leur ordre de récence et on écarte ceux que le référentiel ne
+  // connaît pas (encore) — il arrive du réseau, l'historique est local.
+  const recent = useMemo(() => {
+    const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((exercise): exercise is Exercise => exercise !== undefined);
+  }, [ids, exercises]);
+
+  if (!ready) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator color="#C73E3A" />
+      </View>
+    );
+  }
+
+  if (recent.length === 0) {
+    return (
+      <EmptyState
+        title={t('exercises.recent_empty_title')}
+        description={t('exercises.recent_empty_description')}
+      />
+    );
+  }
+
+  return (
+    <FlatList
+      data={recent}
+      keyExtractor={(item) => item.id}
+      keyboardShouldPersistTaps="handled"
+      renderItem={({ item }) => (
+        <ExerciseListItem
+          exercise={item}
+          selected={selection ? selection.selectedIds.includes(item.id) : undefined}
+          onPress={() => (selection ? selection.onToggle(item) : onPressExercise?.(item))}
+        />
+      )}
+    />
   );
 }
 

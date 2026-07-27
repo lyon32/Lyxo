@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react-native';
 
@@ -7,31 +7,19 @@ import { EmptyState } from '../../components/EmptyState';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { NumberKeyboard } from '../../components/logger/NumberKeyboard';
 import { WeightRepsInput, type WeightRepsField } from '../../components/logger/WeightRepsInput';
-import type { Exercise } from '../../lib/exercises-store';
+import {
+  useActiveWorkout,
+  type ActiveExerciseView,
+  type ActiveSetView,
+} from '../../db/use-active-workout';
+import { type Exercise, useExercisesStore } from '../../lib/exercises-store';
 import { goBackSafely } from '../../lib/safe-back';
 import { lbsToKg, type Locale, type WeightUnit } from '../../lib/units';
-
-interface SessionSet {
-  id: string;
-  // Valeur CANONIQUE en kg (§19.15) — l'unité d'affichage n'existe qu'à
-  // l'écran, jamais dans la donnée.
-  weightKg: number;
-  reps: number;
-}
-
-interface SessionExercise {
-  id: string;
-  exercise: Exercise;
-  sets: SessionSet[];
-}
 
 interface EditingTarget {
   setId: string;
   field: WeightRepsField;
 }
-
-let idCounter = 0;
-const nextId = () => `s${(idCounter += 1)}`;
 
 // Marge laissée au-dessus de la ligne amenée à l'écran, pour que le libellé
 // "Série N" reste lisible et qu'elle ne colle pas au bord.
@@ -44,20 +32,35 @@ const SCROLL_TOP_MARGIN = 24;
 // préférence du profil dès qu'un store la porte.
 const DISPLAY_UNIT: WeightUnit = 'kg';
 
-// Écran de séance active (LLD.md §6.5bis, ROADMAP 2.3-2.4) — "active" et non
-// "[id]" parce qu'à ce stade il n'y a pas de persistance : une seule séance
-// en cours possible, sans id. `app/workout/[id].tsx` viendra à côté pour les
+// Écran de séance active (LLD.md §6.5bis, ROADMAP 2.3-2.6) — "active" et non
+// "[id]" parce qu'une seule séance peut être ouverte à la fois : celle dont
+// `completed_at` est null. `app/workout/[id].tsx` viendra à côté pour les
 // séances passées (§6.3) sans jamais entrer en collision.
 //
-// ⚠️ AUCUNE PERSISTANCE (ROADMAP 2.6). L'état vit dans l'écran et disparaît
-// au kill de l'app — c'est attendu à ce stade, pas un bug.
+// Depuis 2.6 la séance est PERSISTÉE dans WatermelonDB : elle survit au kill
+// de l'app. Seul le tampon de frappe du clavier reste en mémoire.
 // ⚠️ L'action "Gym Check-in" de la référence est abandonnée (§6.5bis) — ne
 // pas la réintroduire en la voyant dans les captures.
 export default function ActiveWorkoutScreen() {
   const { t, i18n } = useTranslation();
   const locale: Locale = i18n.language === 'en' ? 'en' : 'fr';
 
-  const [sessionExercises, setSessionExercises] = useState<SessionExercise[]>([]);
+  const { view, ready, addExercises, addSet, updateSet } = useActiveWorkout();
+
+  // Le référentiel d'exercices vit dans un store réseau, pas en base locale :
+  // après un kill de l'app on rouvre cet écran sans être passé par le sheet,
+  // donc c'est ici aussi qu'il faut le charger pour retrouver les noms.
+  const exercises = useExercisesStore((s) => s.exercises);
+  const loadExercises = useExercisesStore((s) => s.load);
+  useEffect(() => {
+    loadExercises();
+  }, [loadExercises]);
+
+  const exercisesById = useMemo(
+    () => new Map(exercises.map((exercise) => [exercise.id, exercise])),
+    [exercises],
+  );
+
   const [pickerVisible, setPickerVisible] = useState(false);
   const [draftSelection, setDraftSelection] = useState<Exercise[]>([]);
 
@@ -67,16 +70,11 @@ export default function ActiveWorkoutScreen() {
   const [editing, setEditing] = useState<EditingTarget | null>(null);
   const [buffer, setBuffer] = useState<string | null>(null);
 
-  // Défilement automatique vers la série en cours d'édition : le clavier
-  // occupe le bas de l'écran, une série choisie en bas de liste se
-  // retrouverait cachée derrière lui.
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
   const setRowRefs = useRef(new Map<string, View>());
   const scrollOffset = useRef(0);
   const viewportHeight = useRef(0);
-
-  const totalSets = sessionExercises.reduce((sum, item) => sum + item.sets.length, 0);
 
   const registerSetRow = useCallback((setId: string, node: View | null) => {
     if (node) {
@@ -88,6 +86,9 @@ export default function ActiveWorkoutScreen() {
 
   const editingSetId = editing?.setId ?? null;
 
+  // Défilement automatique vers la série en cours d'édition : le clavier
+  // occupe le bas de l'écran, une série choisie en bas de liste se
+  // retrouverait cachée derrière lui.
   useEffect(() => {
     if (editingSetId === null) return;
 
@@ -133,63 +134,53 @@ export default function ActiveWorkoutScreen() {
 
   // Sélection multiple : on ajoute les N exercices cochés en une passe
   // (§6.5bis #4). Un même exercice peut être ajouté plusieurs fois à une
-  // séance (superset, reprise en fin de séance) — d'où un `id` d'instance
-  // distinct de `exercise.id`.
-  const confirmSelection = () => {
-    setSessionExercises((current) => [
-      ...current,
-      ...draftSelection.map((exercise) => ({ id: nextId(), exercise, sets: [] })),
-    ]);
+  // séance (superset, reprise en fin de séance) — chaque ligne
+  // `workout_exercises` est une instance distincte.
+  const confirmSelection = async () => {
+    await addExercises(draftSelection.map((exercise) => exercise.id));
     closePicker();
   };
 
-  const addSet = (sessionExerciseId: string) => {
-    setSessionExercises((current) =>
-      current.map((item) =>
-        item.id === sessionExerciseId
-          ? { ...item, sets: [...item.sets, { id: nextId(), weightKg: 0, reps: 0 }] }
-          : item,
-      ),
-    );
-  };
+  // Le tampon de frappe ne descend PAS en base à chaque touche (motif du
+  // tableau LLD §4) : il est validé ici, au moment où l'utilisateur ferme le
+  // clavier ou passe à un autre champ.
+  const commitBuffer = useCallback(async () => {
+    if (!editing || buffer === null) return;
+    const parsed = buffer === '' ? 0 : Number.parseFloat(buffer);
+    if (Number.isNaN(parsed)) return;
 
-  const updateSet = (setId: string, patch: Partial<SessionSet>) => {
-    setSessionExercises((current) =>
-      current.map((item) => ({
-        ...item,
-        sets: item.sets.map((set) => (set.id === setId ? { ...set, ...patch } : set)),
-      })),
-    );
-  };
+    if (editing.field === 'weight') {
+      // La saisie est dans l'unité AFFICHÉE et repasse en kg avant d'être
+      // stockée (§19.15).
+      await updateSet(editing.setId, {
+        weightKg: DISPLAY_UNIT === 'kg' ? parsed : lbsToKg(parsed),
+      });
+    } else {
+      await updateSet(editing.setId, { reps: Math.round(parsed) });
+    }
+  }, [editing, buffer, updateSet]);
 
-  const focusField = (setId: string, field: WeightRepsField) => {
+  const focusField = async (setId: string, field: WeightRepsField) => {
+    // Passer d'un champ à l'autre vaut validation : sinon la valeur tapée
+    // disparaîtrait sans prévenir.
+    await commitBuffer();
     setEditing({ setId, field });
     // Tampon vide : la première frappe remplace la valeur au lieu de s'y
     // ajouter — le geste attendu quand on tape sur un nombre pour le corriger.
     setBuffer('');
   };
 
-  const closeKeyboard = () => {
+  const closeKeyboard = async () => {
+    await commitBuffer();
     setEditing(null);
     setBuffer(null);
   };
 
-  // Le tampon est canonique (point décimal) ; la valeur saisie est dans
-  // l'unité AFFICHÉE et repasse en kg avant d'être stockée (§19.15).
-  const applyBuffer = (next: string) => {
-    setBuffer(next);
-    if (!editing) return;
-
-    const parsed = next === '' ? 0 : Number.parseFloat(next);
-    if (Number.isNaN(parsed)) return;
-
-    if (editing.field === 'weight') {
-      updateSet(editing.setId, {
-        weightKg: DISPLAY_UNIT === 'kg' ? parsed : lbsToKg(parsed),
-      });
-    } else {
-      updateSet(editing.setId, { reps: Math.round(parsed) });
-    }
+  // Les steppers écrivent une valeur DÉJÀ validée : ils vont directement en
+  // base, et effacent le tampon pour que le bloc réaffiche la valeur réelle.
+  const stepSet = async (setId: string, patch: { weightKg?: number; reps?: number }) => {
+    setBuffer(null);
+    await updateSet(setId, patch);
   };
 
   return (
@@ -224,32 +215,36 @@ export default function ActiveWorkoutScreen() {
               une faute visible en permanence en tête d'écran. */}
           <Text className="mb-6 text-muted">
             {t('workout.active.counter', {
-              sets: t('workout.active.counter_sets', { count: totalSets }),
+              sets: t('workout.active.counter_sets', { count: view?.totalSets ?? 0 }),
               exercises: t('workout.active.counter_exercises', {
-                count: sessionExercises.length,
+                count: view?.exercises.length ?? 0,
               }),
             })}
           </Text>
 
-          {sessionExercises.length === 0 ? (
+          {!ready ? (
+            <View className="py-8">
+              <ActivityIndicator color="#C73E3A" />
+            </View>
+          ) : !view || view.exercises.length === 0 ? (
             <EmptyState
               title={t('workout.active.empty_title')}
               description={t('workout.active.empty_description')}
             />
           ) : (
             <View className="gap-4">
-              {sessionExercises.map((item) => (
+              {view.exercises.map((item) => (
                 <ExerciseCard
                   key={item.id}
                   item={item}
+                  exercise={item.exerciseId ? exercisesById.get(item.exerciseId) : undefined}
                   locale={locale}
                   editing={editing}
                   buffer={buffer}
                   registerSetRow={registerSetRow}
                   onAddSet={() => addSet(item.id)}
                   onFocusField={focusField}
-                  onChangeWeightKg={(setId, weightKg) => updateSet(setId, { weightKg })}
-                  onChangeReps={(setId, reps) => updateSet(setId, { reps })}
+                  onStepSet={stepSet}
                 />
               ))}
             </View>
@@ -272,7 +267,7 @@ export default function ActiveWorkoutScreen() {
           value={buffer ?? ''}
           locale={locale}
           allowDecimal={editing.field === 'weight'}
-          onChange={applyBuffer}
+          onChange={setBuffer}
           onDone={closeKeyboard}
         />
       ) : null}
@@ -307,30 +302,36 @@ export default function ActiveWorkoutScreen() {
 }
 
 interface ExerciseCardProps {
-  item: SessionExercise;
+  item: ActiveExerciseView;
+  exercise: Exercise | undefined;
   locale: Locale;
   editing: EditingTarget | null;
   buffer: string | null;
   registerSetRow: (setId: string, node: View | null) => void;
   onAddSet: () => void;
   onFocusField: (setId: string, field: WeightRepsField) => void;
-  onChangeWeightKg: (setId: string, weightKg: number) => void;
-  onChangeReps: (setId: string, reps: number) => void;
+  onStepSet: (setId: string, patch: { weightKg?: number; reps?: number }) => void;
 }
 
 function ExerciseCard({
   item,
+  exercise,
   locale,
   editing,
   buffer,
   registerSetRow,
   onAddSet,
   onFocusField,
-  onChangeWeightKg,
-  onChangeReps,
+  onStepSet,
 }: ExerciseCardProps) {
   const { t, i18n } = useTranslation();
-  const name = i18n.language === 'en' ? item.exercise.name_en : item.exercise.name_fr;
+  // Le référentiel arrive du réseau : tant qu'il n'est pas chargé (ou hors
+  // ligne au premier lancement), on garde la ligne plutôt que de la masquer.
+  const name = exercise
+    ? i18n.language === 'en'
+      ? exercise.name_en
+      : exercise.name_fr
+    : t('workout.active.exercise_unavailable');
 
   return (
     <View className="rounded-card border border-border bg-card p-4">
@@ -340,31 +341,17 @@ function ExerciseCard({
         <Text className="mt-2 text-sm text-muted">{t('workout.active.no_sets')}</Text>
       ) : (
         <View className="mt-3 gap-5">
-          {item.sets.map((set, index) => (
-            <View
+          {item.sets.map((set) => (
+            <SetRow
               key={set.id}
-              // `collapsable={false}` : sans ça Android peut fusionner cette
-              // vue avec son parent, et la référence utilisée pour la mesure
-              // ne pointerait plus sur rien.
-              collapsable={false}
-              ref={(node) => registerSetRow(set.id, node)}
-              className="gap-2 border-b border-border pb-4"
-            >
-              <Text className="text-sm text-muted">
-                {t('workout.active.set_label', { index: index + 1 })}
-              </Text>
-              <WeightRepsInput
-                weightKg={set.weightKg}
-                reps={set.reps}
-                unit={DISPLAY_UNIT}
-                locale={locale}
-                focusedField={editing?.setId === set.id ? editing.field : null}
-                editingValue={editing?.setId === set.id ? buffer : null}
-                onFocusField={(field) => onFocusField(set.id, field)}
-                onChangeWeightKg={(weightKg) => onChangeWeightKg(set.id, weightKg)}
-                onChangeReps={(reps) => onChangeReps(set.id, reps)}
-              />
-            </View>
+              set={set}
+              locale={locale}
+              editing={editing}
+              buffer={buffer}
+              registerSetRow={registerSetRow}
+              onFocusField={onFocusField}
+              onStepSet={onStepSet}
+            />
           ))}
         </View>
       )}
@@ -374,6 +361,54 @@ function ExerciseCard({
       <Pressable onPress={onAddSet} className="mt-3 min-h-tap justify-center py-2">
         <Text className="text-ember">{t('workout.active.add_set')}</Text>
       </Pressable>
+    </View>
+  );
+}
+
+interface SetRowProps {
+  set: ActiveSetView;
+  locale: Locale;
+  editing: EditingTarget | null;
+  buffer: string | null;
+  registerSetRow: (setId: string, node: View | null) => void;
+  onFocusField: (setId: string, field: WeightRepsField) => void;
+  onStepSet: (setId: string, patch: { weightKg?: number; reps?: number }) => void;
+}
+
+function SetRow({
+  set,
+  locale,
+  editing,
+  buffer,
+  registerSetRow,
+  onFocusField,
+  onStepSet,
+}: SetRowProps) {
+  const { t } = useTranslation();
+
+  return (
+    <View
+      // `collapsable={false}` : sans ça Android peut fusionner cette vue avec
+      // son parent, et la référence utilisée pour la mesure ne pointerait
+      // plus sur rien.
+      collapsable={false}
+      ref={(node) => registerSetRow(set.id, node)}
+      className="gap-2 border-b border-border pb-4"
+    >
+      <Text className="text-sm text-muted">
+        {t('workout.active.set_label', { index: set.setNumber })}
+      </Text>
+      <WeightRepsInput
+        weightKg={set.weightKg}
+        reps={set.reps}
+        unit={DISPLAY_UNIT}
+        locale={locale}
+        focusedField={editing?.setId === set.id ? editing.field : null}
+        editingValue={editing?.setId === set.id ? buffer : null}
+        onFocusField={(field) => onFocusField(set.id, field)}
+        onChangeWeightKg={(weightKg) => onStepSet(set.id, { weightKg })}
+        onChangeReps={(reps) => onStepSet(set.id, { reps })}
+      />
     </View>
   );
 }

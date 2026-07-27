@@ -498,7 +498,8 @@ Context API pour l'état qui bouge souvent (re-renders non contrôlés).
 
 | Type de donnée | Où elle vit | Pourquoi |
 |---|---|---|
-| Séance en cours de log (avant complétion) | `useWorkoutStore` (Zustand) | Éphémère, redondant avec WatermelonDB tant que non "complétée" — évite d'écrire en base à chaque tap |
+| Séance en cours de log (avant complétion) | **WatermelonDB** (⚠️ CORRIGÉ, ROADMAP 2.6) | Voir la correction sous le tableau — cette ligne disait "Zustand éphémère" et contredisait la règle de frontière énoncée juste après |
+| Tampon de frappe du clavier numérique (chiffres en cours de saisie) | State d'écran (`app/workout/active.tsx`) | C'est CE niveau-là qui ne doit pas descendre en base à chaque touche ; il est perdable sans conséquence |
 | Séances terminées, sets, PRs, profils | WatermelonDB (via hooks `withObservables`) | Source de vérité offline, réactif nativement |
 | Session utilisateur (JWT, profil courant) | `useAuthStore` (Zustand) + Supabase client | Zustand = cache mémoire rapide ; Supabase gère la persistance/refresh du JWT |
 | Préférences UI non synchronisées (ex. dernier filtre exercice utilisé) | `useSettingsStore` (Zustand + AsyncStorage persist) | Confort, pas de valeur à synchroniser serveur |
@@ -509,6 +510,31 @@ Context API pour l'état qui bouge souvent (re-renders non contrôlés).
 Règle de frontière : **si une donnée doit survivre à un crash de l'app,
 elle vit dans WatermelonDB, jamais dans un store Zustand.** Les stores
 sont reconstruits à froid au démarrage.
+
+> ⚠️ **CORRECTION (ROADMAP 2.6)** — le tableau ci-dessus se contredisait
+> lui-même. Il rangeait la séance en cours dans un store Zustand
+> "éphémère", alors que la règle de frontière juste au-dessus dit
+> l'inverse : une séance en cours DOIT survivre à un crash. Perdre
+> quarante minutes de log parce qu'Android a tué l'app en arrière-plan —
+> scénario courant sur les appareils d'entrée de gamme du marché d'entrée
+> (PROJECT_BRIEF) — est un défaut rédhibitoire pour une app offline-first.
+> La règle l'emporte : la séance en cours vit dans WatermelonDB dès sa
+> création.
+>
+> Le motif invoqué par l'ancienne ligne ("éviter d'écrire en base à chaque
+> tap") reste valable, mais il visait le mauvais niveau : ce qui ne doit
+> pas descendre en base à chaque touche, c'est le **tampon de frappe** du
+> clavier numérique, pas la série elle-même. Découpage retenu et
+> implémenté en 2.6 :
+> - structure (séance créée, exercice ajouté, série ajoutée) → écriture
+>   immédiate en base ;
+> - valeur validée (stepper pressé, clavier fermé, passage à un autre
+>   champ) → écriture immédiate ;
+> - chiffres en cours de frappe → state d'écran uniquement, jamais écrits.
+>
+> Conséquence : `useWorkoutStore` n'existe pas et ne doit pas être créé.
+> L'arbre de fichiers §1 le liste encore sous `stores/` — à retirer à la
+> prochaine régénération de cette section.
 
 ---
 
