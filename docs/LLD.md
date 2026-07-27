@@ -542,6 +542,31 @@ sont reconstruits à froid au démarrage.
 > adoptés depuis la référence. ROADMAP.md 4.8-4.13 + Phase 5bis portent le
 > détail d'exécution ; ce qui suit est la spec écran par écran.
 
+### 6.0 Règles transverses (AJOUTÉ 2026-07-27)
+> Décisions du brainstorm 2026-07-24 qui n'avaient jamais été écrites ici
+> — elles ne vivaient que dans les captures d'origine. Ce sont des règles
+> **globales**, à réutiliser d'écran en écran : le redesign s'applique à
+> toute l'app, pas au seul écran en cours de construction.
+
+**Pattern d'état vide (unique, app-wide).** Titre en gras + description en
+gris, **alignés à gauche**, aucune illustration, aucune icône, aucun CTA
+décoratif. Une seule forme pour tous les cas : "No logs yet", "No gym
+partners yet", "No notifications", onglets Recent/Custom du sheet Add
+Exercise (§6.5bis), feed vide, etc. Un état vide est un écran de
+production — c'est ce que voient les 10 coachs beta au premier lancement,
+avant d'avoir la moindre donnée. Jamais un `return null`, jamais un
+spinner infini, jamais un placeholder "à faire".
+
+**Format de stat card.** Label en capitales grises + valeur en gros gras +
+sous-titre gris, en grille 2 colonnes. Vaut pour TOUTES les stats de
+l'app (Performance §6.x, stats row du détail workout §6.3, Share Lift Card
+§6.7) — pas un format par écran.
+
+**Conventions de header.** Un écran de tab porte son titre à gauche et ses
+actions à droite (Home : salutation + 3 icônes, §6.2 ; Profil : 3 icônes
+share/edit/settings, §6.7). Les sheets portent un titre court et une
+croix de fermeture à droite.
+
 ### 6.1 Nav restructure
 Remplace les 5 tabs actuels (`index`/`log`/`progress`/`discover`/`profile`) :
 **Home** · **Log** · **Search** (sous-tabs "Feed"/"Discover" en pills texte) ·
@@ -611,6 +636,66 @@ restent des stat cards dans Performance), Feedback (formulaire in-app →
 support client). Visibles mais grisés/désactivés (stubs v2) : Connect to
 Health (Google Fit Android / Apple Health iOS), Nutrition Tracking,
 Programs (§6.4). Abandonné définitivement, aucune version : Import.
+
+### 6.5bis Flux de logging de séance (AJOUTÉ 2026-07-27)
+> Décisions du brainstorm 2026-07-24 jamais écrites ici — §6 passait
+> directement de Actions à Settings, alors que ROADMAP 2.3-2.11
+> implémente précisément ce flux. Numérotation en "bis" pour ne pas
+> décaler §6.6-§6.8, référencés depuis API_SPEC.md §4.7.
+
+**Priming notification.** Écran interne (avatars superposés, "Stay in the
+loop!", boutons *Enable Notifications* / *Not Now*) AVANT le prompt OS
+natif — jamais le prompt système en premier. Un refus sur l'écran interne
+ne consomme pas l'unique demande système, qu'Android/iOS ne réaffichent
+pas.
+
+**Écran de création de séance.** Compteur "0 sets / 0 exercices" en tête +
+bouton "Add Exercise". ⚠️ L'action "Gym Check-in" de la référence est
+**abandonnée** — ne pas la réintroduire en la voyant dans les captures.
+
+**Sheet "Add Exercise" — 4 éléments, tous retenus :**
+1. Onglets **All / Recent / Custom**.
+2. Chips de catégorie par groupe musculaire (mêmes slugs `muscle_group`
+   que `exercises` / `lib/exercise-labels.ts` — pas de taxonomie
+   parallèle, cf. §6.3).
+3. **"+ Create"** inline pour un exercice custom, sans quitter le sheet.
+4. Sélection **multiple** par toggle à coche — c'est le mécanisme de
+   sélection lui-même, pas une option : on ajoute N exercices en une
+   passe, puis on valide.
+
+⚠️ **Composant partagé, pas un écran.** La même UI sert trois surfaces :
+le sheet dans le flux de séance, l'onglet **Log** de la tab bar (§6.1,
+révision 2026-07-24) et **Actions → Exercises** en plein écran (§6.5). Un
+seul composant, une seule liste, un seul jeu de filtres — toute logique
+de sélection écrite "pour le sheet" doit rester agnostique de sa surface
+d'affichage.
+
+Contraintes de données à respecter dans ce sheet :
+- **Recent** n'a aucune source avant ROADMAP 2.6 (`workouts`/
+  `workout_exercises`/`sets`) : état vide §6.0 jusque-là, pas un onglet
+  masqué (la structure à 3 onglets est définitive).
+- **Custom** lit `custom_exercises` (DATA_MODEL §2.4). La limite de 5 en
+  gratuit est posée **en base** (`enforce_custom_exercise_limit()`,
+  ROADMAP 2.2) — l'UI doit donc traiter `CUSTOM_EXERCISE_LIMIT_REACHED`
+  comme une réponse normale et attendue du "+ Create", avec un message
+  explicite et un renvoi vers Lyxo+, jamais comme une erreur technique.
+  Ne jamais dupliquer le compte des 5 côté client comme s'il faisait
+  autorité : la base tranche, le client affiche.
+
+**Table de logging active — adaptative par type d'exercice**, pas un
+tableau unique : colonnes séries/reps/poids pour la musculation ;
+colonnes rounds / secondes de travail / secondes de repos pour le
+cardio/circuit. Le composant de saisie poids/reps est spécifié en ROADMAP
+2.4 (`WeightRepsInput`, blocs égaux kg|reps, steppers unit-aware 56px
+min, clavier custom sticky).
+
+**Photo + légende post-séance : optionnelle et skippable.** Jamais un
+passage obligé pour terminer une séance — cf. §6.3, la photo n'apparaît
+dans le détail workout que si elle a été postée.
+
+**Écran de fin de séance : minimal** (effet peak-end, ROADMAP 2.11) —
+grand compteur + une ligne de félicitation courte. ⚠️ Pas de récapitulatif
+de stats sur cet écran : c'est un choix, pas un oubli.
 
 ### 6.6 Settings
 v1 actif : Theme (Auto/Light/Dark segmented), unité poids (KG/LBS),

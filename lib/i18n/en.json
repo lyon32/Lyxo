@@ -223,6 +223,29 @@
       "medicine_ball": "Medicine ball",
       "foam_roll": "Foam roller",
       "other": "Other"
+    },
+    "tabs": {
+      "all": "All",
+      "recent": "Recent",
+      "custom": "Custom"
+    },
+    "recent_empty_title": "No recent exercises",
+    "recent_empty_description": "Exercises you log will show up here so you can reuse them fast.",
+    "custom_empty_title": "No custom exercises",
+    "custom_empty_description": "Create your own exercises when the library doesn't have what you need."
+  },
+  "workout": {
+    "active": {
+      "title": "Workout",
+      "counter": "{{sets}} sets / {{exercises}} exercises",
+      "empty_title": "No exercises yet",
+      "empty_description": "Add your first exercise to start logging this session.",
+      "add_exercise": "Add Exercise",
+      "picker_title": "Add Exercise",
+      "add_selected": "Add ({{count}})",
+      "add_set": "+ Set",
+      "set_label": "Set {{index}}",
+      "no_sets": "No sets yet"
     }
   }
 }

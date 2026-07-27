@@ -66,6 +66,10 @@ export default Sentry.wrap(function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="auth" />
+          {/* Route à plat : sans `app/workout/_layout.tsx`, expo-router nomme
+              l'écran "workout/active" et non "workout". `app/workout/[id].tsx`
+              (détail d'une séance passée, LLD §6.3) se déclarera pareil. */}
+          <Stack.Screen name="workout/active" />
           <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
           <Stack.Screen name="messages" options={{ presentation: 'modal' }} />
         </Stack>

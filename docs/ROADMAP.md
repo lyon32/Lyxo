@@ -264,8 +264,53 @@
   6 cas : 5 OK, 6e bloqué, soft delete libère un emplacement, restauration
   bloquée, premium lève la limite, retour gratuit re-bloque. Advisor
   sécurité inchangé (seul le warning Auth préexistant subsiste).
-- [ ]  **2.3** Écran Workout Logger : structure de base (sélection
+- [X]  **2.3** Écran Workout Logger : structure de base (sélection
   exercice, ajout de séries) — sans encore la saisie poids/reps.
+  `app/workout/active.tsx` : compteur "N séries / N exercices", cartes
+  d'exercice avec lignes de série numérotées et bouton "+ Série", bouton
+  "Ajouter un exercice". Nommé `active` et non `[id]` car sans persistance
+  il n'y a qu'une séance en cours possible, sans id — `workout/[id].tsx`
+  (détail d'une séance passée, LLD §6.3) se déclarera à côté sans
+  collision. Route à plat : sans `app/workout/_layout.tsx`, expo-router
+  nomme l'écran `workout/active`, pas `workout` (un `<Stack.Screen
+  name="workout" />` déclenche un warning "No route named"). CTA
+  "Start Workout" de Home branché dessus (il n'avait aucun handler).
+  **L'essentiel de la tâche est `components/ExercisePicker.tsx`** : le
+  composant partagé imposé par LLD §6.5bis, qui sert les trois surfaces
+  (sheet du flux de séance, onglet Log, Actions → Exercises) avec une
+  seule liste et un seul jeu de filtres. Il porte les 3 onglets
+  All/Recent/Custom et bascule entre mode sélection (toggle à coche via
+  la prop `selection`) et mode navigation (ouvre le détail) sans rien
+  savoir de sa surface d'affichage — d'où l'absence volontaire de tout
+  chrome d'écran dedans. Preuve de non-duplication : `app/(tabs)/log.tsx`
+  est passé de 87 à 30 lignes et ne contient plus aucune logique de liste
+  ou de filtre. Recherche et chips ne sont rendues que sur l'onglet All,
+  où elles ont une liste à piloter. Un même exercice peut être ajouté
+  plusieurs fois à une séance (superset), d'où un id d'instance distinct
+  de `exercise.id`. Nouveau `components/EmptyState.tsx` : première
+  implémentation du pattern §6.0 (titre gras + description grise, aligné
+  à GAUCHE, sans icône).
+  ⚠️ **RÉSERVES — ne pas lire comme des bugs :**
+  - **Aucune persistance** (ROADMAP 2.6) : les séries ajoutées vivent en
+    state d'écran et disparaissent au kill de l'app. Attendu à ce stade.
+  - **Recent** est un état vide tant que 2.6 n'a pas créé `workouts`/
+    `workout_exercises`/`sets` — aucune source de données n'existe.
+  - **Custom** est un état vide en attente de son store client, et le
+    **"+ Create" inline reste à faire** (§6.5bis) : à planifier **juste
+    après 2.6**. C'est là que la limite de 5 posée en base en 2.2 sera
+    enfin exercée côté UI — `CUSTOM_EXERCISE_LIMIT_REACHED` doit être
+    traité comme une réponse NORMALE avec renvoi vers Lyxo+, jamais comme
+    une erreur technique, et le client ne doit jamais recompter les 5
+    comme s'il faisait autorité.
+  - Saisie poids/reps volontairement absente → 2.4 (`WeightRepsInput`) ;
+    "+ Série" n'ajoute qu'une ligne numérotée vide.
+  Vérifié : `tsc --noEmit` et `eslint` verts, bundle Metro complet servi
+  (4330 modules), et sur appareil réel le golden path (3 exercices cochés
+  en une passe → "0 séries / 3 exercices", puis "+ Série" incrémentant le
+  compteur). L'alignement à gauche des états vides Recent/Custom n'a été
+  vérifié que **structurellement** (pas de `text-center` dans
+  `EmptyState`), pas à l'œil — Maestro ne peut pas piloter l'appareil de
+  test (voir la note de session sur INJECT_EVENTS).
 - [ ]  **2.4** Composant `WeightRepsInput` : blocs égaux kg|reps,
   steppers unit-aware (56px min), clavier custom sticky.
 - [ ]  **2.5** `lib/units.ts` (conversion, formats FR/EN) + tests unitaires.

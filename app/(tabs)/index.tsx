@@ -91,7 +91,10 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <Pressable className="mt-6 flex-row items-center justify-between rounded-2xl border border-ember/25 bg-steel p-6">
+        <Pressable
+          onPress={() => router.push('/workout/active')}
+          className="mt-6 flex-row items-center justify-between rounded-2xl border border-ember/25 bg-steel p-6"
+        >
           <View className="flex-1 pr-4">
             <Text className="text-xl text-fg">{t('home.cta_title')}</Text>
             <Text className="mt-1 text-muted">{t('home.cta_subtitle')}</Text>
