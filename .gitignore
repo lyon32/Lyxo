@@ -42,6 +42,12 @@ yarn-error.*
 backend/scripts/.cache/
 backend/scripts/output/
 
+# captures d'écran de travail et dumps d'erreur déposés à la racine
+# (références design, stacktraces Sentry collées pour debug — transitoires).
+# Ancré à la racine : les vrais assets vivent dans LOGO/, LOGO NAME/, assets/.
+/*.png
+/error.md
+
 # generated native folders
 /ios
 /android

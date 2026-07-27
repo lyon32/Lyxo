@@ -477,6 +477,19 @@ Décisions détaillées : LLD.md §Redesign référence. Palette Braise inchang�
 
 - [ ]  **9.1** Migrations `subscriptions`, `payments`, `pay_links`
   (DATA_MODEL §2.16-2.18).
+- [ ]  **9.1bis** 🚨 **BLOQUANT — à faire dans la même migration que 9.1.**
+  Mettre à jour `public.has_active_premium(uuid)`, créée en ROADMAP 2.2
+  (`supabase/migrations/20260725140000_create_custom_exercises.sql`), pour
+  ajouter le `OR` sur un abonnement actif de la table `subscriptions` que
+  9.1 vient de créer. **Tant que ce n'est pas fait, la fonction ne regarde
+  que `trial_expires_at` : tout abonné Lyxo+ dont l'essai est expiré est
+  traité comme gratuit et reste bloqué à 5 exercices custom**, alors que
+  PRICING.md le promet illimité — on facture un déblocage qui n'arrive
+  jamais. La fonction est volontairement le seul point de vérité du statut
+  premium en base : tout garde-fou premium ajouté d'ici là doit passer par
+  elle (et non réimplémenter le test), pour que ce correctif unique les
+  débloque tous d'un coup. Test de non-régression attendu : abonné actif
+  sans essai en cours → 6e exercice custom accepté.
 - [ ]  **9.2** PawaPay : Dashboard configuré (callback URLs → token
   sandbox → signed callbacks → active-configuration vérifiée CM).
 - [ ]  **9.3** Backend : `/v1/billing/checkout` (POST /v2/deposits,

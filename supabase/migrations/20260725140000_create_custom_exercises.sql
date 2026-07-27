@@ -39,11 +39,19 @@ stable
 security definer
 set search_path = public
 as $$
-  -- ⚠️ Phase 9 (ROADMAP 9.x, PRICING.md) : ajouter ici le OR sur un
-  -- abonnement actif une fois la table `subscriptions` créée. Tant qu'elle
-  -- n'existe pas, seul un essai en cours confère le statut premium —
+  -- 🚨 ROADMAP 9.1bis (BLOQUANT) : ajouter ici le OR sur un abonnement
+  -- actif dès que la table `subscriptions` existe (créée en 9.1). Tant que
+  -- ce n'est pas fait, seul un essai en cours confère le statut premium —
   -- cohérent avec CLAUDE_LYXO_V3 §"aucun abonnement actif = expérience
-  -- gratuite".
+  -- gratuite" tant qu'il n'y a pas d'abonnement possible, mais FAUX dès
+  -- que la facturation existe : un abonné Lyxo+ à l'essai expiré serait
+  -- traité comme gratuit (bloqué à 5 exercices custom alors que PRICING.md
+  -- promet illimité).
+  --
+  -- Cette fonction est le point de vérité UNIQUE du statut premium en
+  -- base : tout nouveau garde-fou premium doit l'appeler plutôt que
+  -- réimplémenter le test, pour que le correctif 9.1bis les débloque tous
+  -- d'un seul coup.
   select exists (
     select 1
     from profiles
