@@ -32,6 +32,14 @@ export function RestTimerModal() {
   useEffect(() => {
     if (endsAt === null) return;
 
+    // `now` ne se réinitialise pas tout seul quand un NOUVEAU repos démarre :
+    // ce composant est monté une fois pour toute l'app (racine du layout), et
+    // sans cette ligne il garde la valeur d'un rendu passé (parfois très
+    // ancien) jusqu'au premier tick de l'intervalle, jusqu'à 250 ms plus tard.
+    // Résultat observé : le premier rendu affichait 90 s + tout le temps
+    // écoulé depuis le montage — jamais le vrai 1:30.
+    setNow(Date.now());
+
     const interval = setInterval(() => setNow(Date.now()), DISPLAY_TICK_MS);
 
     // Retour au premier plan : on resynchronise IMMÉDIATEMENT sans attendre le

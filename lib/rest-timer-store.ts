@@ -44,9 +44,19 @@ export const useRestTimerStore = create<RestTimerState>()(
 
       start: async (durationSecs, next) => {
         const current = get();
-        // IDEMPOTENCE (Point 2) : Si un timer est déjà en cours pour la même fin
-        // et n'est pas expiré, on ne le réinitialise pas à zéro.
-        if (current.endsAt !== null && current.endsAt > Date.now()) {
+        // IDEMPOTENCE (Point 2) : seul un double-appel pour LE MÊME repos
+        // (même durée cible, même exercice suivant) ne doit pas réinitialiser
+        // le décompte. Comparer seulement `endsAt > Date.now()` bloquait à
+        // tort tout nouveau repos tant qu'un timer non expiré traînait en
+        // mémoire persistée (ex. resté d'une session précédente tuée en plein
+        // repos) : le nouveau repos ne démarrait jamais, l'écran affichait la
+        // durée de l'ancien jusqu'à son expiration naturelle.
+        const isSameRest =
+          current.endsAt !== null &&
+          current.endsAt > Date.now() &&
+          current.totalDurationSecs === durationSecs &&
+          current.nextExerciseName === (next?.exerciseName ?? null);
+        if (isSameRest) {
           return;
         }
 

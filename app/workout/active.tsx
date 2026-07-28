@@ -511,10 +511,15 @@ function SetRow({
       />
 
       {/* Valider la serie marque la serie faite ET demarre le repos
-          (PRD §1.2). Une serie deja validee garde le bouton disponible : on
-          peut relancer un repos sans devoir en creer une nouvelle. */}
+          (PRD §1.2). Une fois validee, le bouton reste affiche pour montrer
+          l'etat mais ne relance plus rien : reappuyer ne doit pas redemarrer
+          un repos pour une serie deja terminee. */}
       <Pressable
-        onPress={() => onValidateSet(set.id)}
+        onPress={() => {
+          if (set.isCompleted) return;
+          onValidateSet(set.id);
+        }}
+        disabled={set.isCompleted}
         className={`mt-2 min-h-tap items-center justify-center rounded-2xl ${
           set.isCompleted ? 'border border-border bg-card' : 'bg-steel'
         }`}
