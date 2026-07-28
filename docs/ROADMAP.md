@@ -440,6 +440,37 @@
 - [ ]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
   implémentation par TIMESTAMP persisté + notification locale
   programmée (PRD 1.2 : doit survivre au verrouillage d'écran/appel).
+  **Code livré et vérifié statiquement (commits 28a2193, b543b99), DoD
+  appareil encore à valider.** `lib/rest-timer.ts` (calculs purs, 11 tests
+  avec horloge injectée), `lib/rest-timer-store.ts` (`endsAt` persisté en
+  AsyncStorage), `lib/notifications.ts`, `components/logger/
+  RestTimerModal.tsx` (anneau SVG derrière les chiffres à 30 %),
+  `components/NotificationPrimingModal.tsx` (priming avant le prompt
+  système, LLD §6.5bis), et "Valider la série" dans `active.tsx`.
+  ⚠️ **PIÈGE `sound` — ne pas le réintroduire.** Sur un CANAL Android le
+  type est `string | null` : toute chaîne y désigne un NOM DE FICHIER
+  audio à embarquer via le plugin, d'où l'erreur runtime "Custom sound
+  'default' not found". Et `sound: true` n'y compile pas — le booléen
+  n'est valable que dans le `content`. La propriété est donc OMISE sur le
+  canal (importance HIGH ⇒ son système) et vaut `true` dans le content.
+  Réintroduite puis retirée deux fois le 2026-07-28.
+  ⚠️ **DIVERGENCE DE NOM DE PAQUET — résolue le 2026-07-28, à ne pas
+  recréer.** `android/app/build.gradle` produisait `com.lyon32.lyxo`
+  pendant qu'`app.json` déclarait `com.lyxo.app`. `android/` étant
+  gitignoré et non régénéré, les DEUX applications se sont retrouvées
+  installées, **toutes deux enregistrant le schéma `lyxo://`**. Le lien
+  `lyxo://expo-development-client/...` qu'ouvre `expo run:android` est
+  alors ambigu : Android lançait le paquet obsolète, si bien que les
+  corrections testées ne portaient pas sur l'app affichée. C'est aussi ce
+  qui faisait "apparaître et disparaître" la base WatermelonDB — deux apps,
+  deux bases. Résolu par `expo prebuild --clean` (aligné sur
+  `com.lyxo.app`) et désinstallation des deux anciens paquets.
+  **Symptôme à reconnaître** : un correctif qui "ne change rien" alors que
+  le bundle est bon — vérifier `pm list packages | grep lyxo` et
+  `topResumedActivity` AVANT de chercher dans le code.
+  Note : `expo prebuild` efface `android/gradle.properties`, donc les
+  timeouts réseau Gradle allongés (réseau instable) sont à remettre après
+  chaque prebuild — ou à porter dans un plugin `expo-build-properties`.
 - [ ]  **2.9** `lib/pr-detection.ts` + tests unitaires (règles §18.1
   complètes : plausibilité, delta, ancienneté).11
 - [ ]  **2.10** Célébration PR (carte partageable, pas de photo).
