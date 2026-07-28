@@ -28,10 +28,13 @@ transitions` (browser API), `web-design-guidelines`. React Native has no
 DOM — these have nothing to bind to and their advice will be wrong.
 They apply to `lyxo-web/` only.
 
-Two skills carry duplicates — pick one and say which:
-`mobile-app-ui-design` also exists as `anthropic-skills:mobile-app-ui-design`,
-and the `ui-ux-pro-max:*` plugin covers the same ground as `design` /
-`ui-styling`.
+**Duplicates — resolved, do not deliberate:**
+- `mobile-app-ui-design` (user level, from
+  https://github.com/ceorkm/mobile-app-ui-design) is **the one to use**.
+  Ignore `anthropic-skills:mobile-app-ui-design`, which shadows it with a
+  near-identical trigger description.
+- The `ui-ux-pro-max:*` plugin covers the same ground as `design` /
+  `ui-styling`; prefer the plugin, it is the maintained copy.
 
 **Project docs win over any skill.** `docs/` (LLD, DATA_MODEL, API_SPEC,
 SECURITY_NOTES, CONVENTIONS) and this file are the source of truth for
