@@ -11,6 +11,14 @@ If several apply, load them all.
 
 | Task at hand | Skill to invoke |
 |---|---|
+| Routes, navigation, `app/` layout, groups, modals, headers | `expo-router` |
+| Any network request / API call / caching / offline fetch | `expo-data-fetching` |
+| Dev build, dev client, running the app on a device | `expo-dev-client` |
+| NativeWind / Tailwind config trouble | `expo-tailwind-setup` |
+| Expo SDK upgrade or dependency mismatch | `expo-upgrade` |
+| Writing an Expo native module (Swift/Kotlin) | `expo-module` |
+| `eas.json` profiles, builds, store submission, TestFlight | `eas-app-stores` |
+| Local release APK without EAS (Gradle) | `cwb-local-build` |
 | Designing a mobile screen, flow, component, or mockup | `mobile-app-ui-design` |
 | Reviewing / polishing the visual design of an existing screen | `design-audit` |
 | Any UI code containing visible text (FR **and** EN) | `typography` |
