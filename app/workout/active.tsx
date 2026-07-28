@@ -5,8 +5,15 @@ import { Plus, X } from 'lucide-react-native';
 
 import { EmptyState } from '../../components/EmptyState';
 import { ExercisePicker } from '../../components/ExercisePicker';
+import { NotificationPrimingModal } from '../../components/NotificationPrimingModal';
 import { NumberKeyboard } from '../../components/logger/NumberKeyboard';
+import { RestTimerModal } from '../../components/logger/RestTimerModal';
 import { WeightRepsInput, type WeightRepsField } from '../../components/logger/WeightRepsInput';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+} from '../../lib/notifications';
+import { useRestTimerStore } from '../../lib/rest-timer-store';
 import {
   useActiveWorkout,
   type ActiveExerciseView,
@@ -31,6 +38,10 @@ const SCROLL_TOP_MARGIN = 24;
 // deux unités ; seule cette constante est figée. À remplacer par la
 // préférence du profil dès qu'un store la porte.
 const DISPLAY_UNIT: WeightUnit = 'kg';
+
+// Durée de repos par défaut. Non configurable à ce stade : le réglage par
+// exercice n'est pas spécifié dans la ROADMAP Phase 2.
+const REST_DEFAULT_SECS = 90;
 
 // Écran de séance active (LLD.md §6.5bis, ROADMAP 2.3-2.6) — "active" et non
 // "[id]" parce qu'une seule séance peut être ouverte à la fois : celle dont
@@ -69,6 +80,11 @@ export default function ActiveWorkoutScreen() {
   // clavier sticky à l'écran.
   const [editing, setEditing] = useState<EditingTarget | null>(null);
   const [buffer, setBuffer] = useState<string | null>(null);
+
+  const startRest = useRestTimerStore((s) => s.start);
+  const [primingVisible, setPrimingVisible] = useState(false);
+  // Le repos à démarrer une fois que l'utilisateur a répondu au priming.
+  const pendingRestRef = useRef<{ exerciseName: string } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
@@ -188,6 +204,49 @@ export default function ActiveWorkoutScreen() {
     await updateSet(setId, patch);
   };
 
+  // Validation d'une série : elle est marquée faite et le repos démarre
+  // (PRD §1.2). Le repos est le vrai enchaînement d'une séance — c'est ce
+  // moment-là qui justifie la permission notifications, pas le lancement de
+  // l'app (PRD §1.4bis).
+  const validateSet = async (setId: string, exerciseName: string) => {
+    await commitBuffer();
+    setEditing(null);
+    setBuffer(null);
+    await updateSet(setId, { isCompleted: true });
+
+    const next = { exerciseName };
+
+    // Le prompt système Android n'existe qu'une fois : on passe d'abord par
+    // l'écran de priming interne (LLD §6.5bis). Le contrôle est local et
+    // instantané, il ne retarde pas la séance de façon perceptible.
+    const permission = await getNotificationPermission();
+    if (permission === 'undetermined') {
+      pendingRestRef.current = next;
+      setPrimingVisible(true);
+      return;
+    }
+    await startRest(REST_DEFAULT_SECS, next);
+  };
+
+  const handleEnableNotifications = async () => {
+    setPrimingVisible(false);
+    await requestNotificationPermission();
+    // Le repos démarre quel que soit le verdict : un refus ne doit rien
+    // empêcher (PRD §1.4bis, "l'app fonctionne intégralement").
+    const pending = pendingRestRef.current;
+    pendingRestRef.current = null;
+    await startRest(REST_DEFAULT_SECS, pending ?? undefined);
+  };
+
+  const handleDismissPriming = async () => {
+    setPrimingVisible(false);
+    const pending = pendingRestRef.current;
+    pendingRestRef.current = null;
+    // "Plus tard" ne consomme pas le prompt système : on pourra redemander au
+    // repos suivant.
+    await startRest(REST_DEFAULT_SECS, pending ?? undefined);
+  };
+
   return (
     <View className="flex-1 bg-bg">
       <ScrollView
@@ -262,6 +321,14 @@ export default function ActiveWorkoutScreen() {
                   onAddSet={() => addSet(item.id)}
                   onFocusField={focusField}
                   onStepSet={stepSet}
+                  onValidateSet={(setId) =>
+                    validateSet(
+                      setId,
+                      item.exerciseId
+                        ? (exercisesById.get(item.exerciseId)?.name_fr ?? '')
+                        : '',
+                    )
+                  }
                 />
               ))}
             </View>
@@ -288,6 +355,17 @@ export default function ActiveWorkoutScreen() {
           onDone={closeKeyboard}
         />
       ) : null}
+
+      {/* Rest timer plein écran : il se monte tout seul dès qu'un `endsAt`
+          existe dans le store, y compris après un kill de l'app si le repos
+          court toujours (état persisté en AsyncStorage). */}
+      <RestTimerModal />
+
+      <NotificationPrimingModal
+        visible={primingVisible}
+        onEnable={handleEnableNotifications}
+        onDismiss={handleDismissPriming}
+      />
 
       <Modal visible={pickerVisible} animationType="slide" onRequestClose={closePicker}>
         <View className="flex-1 bg-bg px-6 pt-16">
@@ -328,6 +406,7 @@ interface ExerciseCardProps {
   onAddSet: () => void;
   onFocusField: (setId: string, field: WeightRepsField) => void;
   onStepSet: (setId: string, patch: { weightKg?: number; reps?: number }) => void;
+  onValidateSet: (setId: string) => void;
 }
 
 function ExerciseCard({
@@ -340,6 +419,7 @@ function ExerciseCard({
   onAddSet,
   onFocusField,
   onStepSet,
+  onValidateSet,
 }: ExerciseCardProps) {
   const { t, i18n } = useTranslation();
   // Le référentiel arrive du réseau : tant qu'il n'est pas chargé (ou hors
@@ -368,6 +448,7 @@ function ExerciseCard({
               registerSetRow={registerSetRow}
               onFocusField={onFocusField}
               onStepSet={onStepSet}
+              onValidateSet={onValidateSet}
             />
           ))}
         </View>
@@ -390,6 +471,7 @@ interface SetRowProps {
   registerSetRow: (setId: string, node: View | null) => void;
   onFocusField: (setId: string, field: WeightRepsField) => void;
   onStepSet: (setId: string, patch: { weightKg?: number; reps?: number }) => void;
+  onValidateSet: (setId: string) => void;
 }
 
 function SetRow({
@@ -400,6 +482,7 @@ function SetRow({
   registerSetRow,
   onFocusField,
   onStepSet,
+  onValidateSet,
 }: SetRowProps) {
   const { t } = useTranslation();
 
@@ -426,6 +509,20 @@ function SetRow({
         onChangeWeightKg={(weightKg) => onStepSet(set.id, { weightKg })}
         onChangeReps={(reps) => onStepSet(set.id, { reps })}
       />
+
+      {/* Valider la serie marque la serie faite ET demarre le repos
+          (PRD §1.2). Une serie deja validee garde le bouton disponible : on
+          peut relancer un repos sans devoir en creer une nouvelle. */}
+      <Pressable
+        onPress={() => onValidateSet(set.id)}
+        className={`mt-2 min-h-tap items-center justify-center rounded-2xl ${
+          set.isCompleted ? 'border border-border bg-card' : 'bg-steel'
+        }`}
+      >
+        <Text className={set.isCompleted ? 'text-muted' : 'font-inter-semibold text-fg'}>
+          {t(set.isCompleted ? 'workout.active.set_done' : 'workout.active.validate_set')}
+        </Text>
+      </Pressable>
     </View>
   );
 }

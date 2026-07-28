@@ -59,7 +59,13 @@
   "notifications": {
     "header_title": "Notifications",
     "empty_title": "No notifications",
-    "empty_subtitle": "Likes, comments, reactions, and follows will appear here."
+    "empty_subtitle": "Likes, comments, reactions, and follows will appear here.",
+    "priming": {
+      "title": "Never miss the end of a rest",
+      "description": "We'll ring when your rest is over, even with the screen locked or the app closed. Nothing else — no marketing.",
+      "enable": "Enable notifications",
+      "later": "Later"
+    }
   },
   "messages": {
     "header_title": "Messages",
@@ -250,7 +256,9 @@
       "counter_sets_other": "{{count}} sets",
       "counter_exercises_one": "{{count}} exercise",
       "counter_exercises_other": "{{count}} exercises",
-      "write_error_title": "Couldn't save"
+      "write_error_title": "Couldn't save",
+      "validate_set": "Log set",
+      "set_done": "Logged"
     },
     "input": {
       "weight_label": "Weight",
@@ -259,6 +267,12 @@
     "keyboard": {
       "done": "Done",
       "backspace": "Delete"
+    },
+    "rest": {
+      "next_up": "Next up",
+      "minus_15": "−15 s",
+      "plus_15": "+15 s",
+      "skip": "Skip rest"
     }
   }
 }

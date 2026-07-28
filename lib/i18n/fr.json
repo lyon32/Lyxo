@@ -59,7 +59,13 @@
   "notifications": {
     "header_title": "Notifications",
     "empty_title": "Aucune notification",
-    "empty_subtitle": "Les likes, commentaires, réactions et abonnements apparaîtront ici."
+    "empty_subtitle": "Les likes, commentaires, réactions et abonnements apparaîtront ici.",
+    "priming": {
+      "title": "Ne manque jamais la fin d'un repos",
+      "description": "On sonne quand ton repos est terminé, même écran verrouillé ou app fermée. Rien d'autre — aucune notification marketing.",
+      "enable": "Activer les notifications",
+      "later": "Plus tard"
+    }
   },
   "messages": {
     "header_title": "Messages",
@@ -250,7 +256,9 @@
       "counter_sets_other": "{{count}} séries",
       "counter_exercises_one": "{{count}} exercice",
       "counter_exercises_other": "{{count}} exercices",
-      "write_error_title": "Enregistrement impossible"
+      "write_error_title": "Enregistrement impossible",
+      "validate_set": "Valider la série",
+      "set_done": "Série validée"
     },
     "input": {
       "weight_label": "Poids",
@@ -259,6 +267,12 @@
     "keyboard": {
       "done": "Terminé",
       "backspace": "Effacer"
+    },
+    "rest": {
+      "next_up": "Prochaine série",
+      "minus_15": "−15 s",
+      "plus_15": "+15 s",
+      "skip": "Passer le repos"
     }
   }
 }

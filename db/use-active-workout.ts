@@ -13,6 +13,7 @@ export interface ActiveSetView {
   setNumber: number;
   weightKg: number;
   reps: number;
+  isCompleted: boolean;
 }
 
 export interface ActiveExerciseView {
@@ -90,6 +91,7 @@ async function loadView(): Promise<ActiveWorkoutView | null> {
         setNumber: set.setNumber,
         weightKg: set.weightKg,
         reps: set.reps,
+        isCompleted: set.isCompleted,
       })),
     });
   }
@@ -237,7 +239,7 @@ export function useActiveWorkout() {
   );
 
   const updateSet = useCallback(
-    async (setId: string, patch: { weightKg?: number; reps?: number }) => {
+    async (setId: string, patch: { weightKg?: number; reps?: number; isCompleted?: boolean }) => {
       // Mise à jour OPTIMISTE de la vue, avant l'écriture.
       //
       // Sans elle, l'écran affichait brièvement l'ANCIENNE valeur entre le
@@ -265,6 +267,7 @@ export function useActiveWorkout() {
           await row.update((set) => {
             if (patch.weightKg !== undefined) set.weightKg = patch.weightKg;
             if (patch.reps !== undefined) set.reps = patch.reps;
+            if (patch.isCompleted !== undefined) set.isCompleted = patch.isCompleted;
           });
         });
       });
