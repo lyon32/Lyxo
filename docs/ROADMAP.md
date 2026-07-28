@@ -423,7 +423,20 @@
     la table `follows` en Phase 5 — d'ici là un profil privé n'est lisible
     que par lui-même, soit strictement moins permissif que la cible.
     Vérifié : tsc, eslint, 15/15 tests.
-- [ ]  **2.7** Templates de séance / splits / rotation.
+- [~]  **2.7** ~~Templates de séance / splits / rotation.~~ **ABANDONNÉE —
+  caduque depuis le redesign du 2026-07-24, constaté le 2026-07-28.**
+  LLD.md §6.4 supprime ce concept de la v1 : « Le plan initial (Splits =
+  structure hebdo, Routines = séances individuelles, **les deux prévus
+  v1**) est abandonné. Les deux fusionnent en un seul concept futur,
+  **Programs** — programme complet acheté à un coach, **v2 uniquement** ».
+  Concrètement en v1 : aucun tab Splits sur le Profil, aucun item Routines
+  dans le menu Actions, aucune card split actif sur Home (déjà appliqué
+  dans les écrans livrés). « Programs » relève de la Phase 10
+  (marketplace coach, tab Shop) — ne rien construire ici.
+  Cette ligne n'avait jamais été mise à jour après le redesign : la
+  laisser cochable aurait fait implémenter ce que la spec venait de
+  retirer. Conservée barrée plutôt que supprimée, pour que la
+  numérotation 2.8-2.12 reste stable et que la décision soit traçable.
 - [ ]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
   implémentation par TIMESTAMP persisté + notification locale
   programmée (PRD 1.2 : doit survivre au verrouillage d'écran/appel).
