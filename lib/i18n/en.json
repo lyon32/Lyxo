@@ -249,7 +249,8 @@
       "counter_sets_one": "{{count}} set",
       "counter_sets_other": "{{count}} sets",
       "counter_exercises_one": "{{count}} exercise",
-      "counter_exercises_other": "{{count}} exercises"
+      "counter_exercises_other": "{{count}} exercises",
+      "write_error_title": "Couldn't save"
     },
     "input": {
       "weight_label": "Weight",

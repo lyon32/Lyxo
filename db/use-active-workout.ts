@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Q } from '@nozbe/watermelondb';
+import * as Sentry from '@sentry/react-native';
 
 import { database } from './index';
 import type { Workout } from './models/Workout';
@@ -116,6 +117,20 @@ async function loadView(): Promise<ActiveWorkoutView | null> {
 export function useActiveWorkout() {
   const [view, setView] = useState<ActiveWorkoutView | null>(null);
   const [ready, setReady] = useState(false);
+  // Un tap qui ne produit NI effet NI message est le pire résultat possible :
+  // impossible à distinguer d'un bug d'UI, et invisible en support. Toute
+  // écriture qui échoue remonte ici et s'affiche à l'écran.
+  const [error, setError] = useState<string | null>(null);
+
+  const runWrite = useCallback(async (context: string, work: () => Promise<void>) => {
+    try {
+      setError(null);
+      await work();
+    } catch (caught) {
+      Sentry.captureException(caught, { extra: { context } });
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,9 +163,12 @@ export function useActiveWorkout() {
 
   // Crée la séance au premier ajout réel, pas à l'ouverture de l'écran :
   // ouvrir puis ressortir ne doit pas laisser une séance vide derrière soi.
-  const ensureWorkout = useCallback(async (): Promise<Workout | null> => {
+  const ensureWorkout = useCallback(async (): Promise<Workout> => {
     const profileId = await currentProfileId();
-    if (!profileId) return null;
+    // Échec explicite plutôt qu'un `return null` avalé plus haut : sans
+    // session, la séance ne peut pas être rattachée à un profil, et
+    // l'utilisateur doit le savoir immédiatement.
+    if (!profileId) throw new Error('Aucune session : impossible de créer la séance.');
 
     const existing = await findOpenWorkout(profileId);
     if (existing) return existing;
@@ -167,63 +185,92 @@ export function useActiveWorkout() {
   const addExercises = useCallback(
     async (exerciseIds: string[]) => {
       if (exerciseIds.length === 0) return;
-      const workout = await ensureWorkout();
-      if (!workout) return;
+      await runWrite('workout_add_exercises', async () => {
+        const workout = await ensureWorkout();
 
-      const existing = await database
-        .get<WorkoutExercise>('workout_exercises')
-        .query(Q.where('workout_id', workout.id))
-        .fetchCount();
+        const existing = await database
+          .get<WorkoutExercise>('workout_exercises')
+          .query(Q.where('workout_id', workout.id))
+          .fetchCount();
 
-      await database.write(async () => {
-        await database.batch(
-          ...exerciseIds.map((exerciseId, offset) =>
-            database.get<WorkoutExercise>('workout_exercises').prepareCreate((row) => {
-              row.workoutId = workout.id;
-              // ⚠️ Invariant du CHECK serveur (§2.6) : au moins un des deux
-              // ids d'exercice. WatermelonDB ne peut pas l'exprimer, donc
-              // c'est ici qu'il se tient.
-              row.exerciseId = exerciseId;
-              row.customExerciseId = null;
-              row.orderIndex = existing + offset;
-            }),
-          ),
-        );
-      });
-    },
-    [ensureWorkout],
-  );
-
-  const addSet = useCallback(async (workoutExerciseId: string) => {
-    const setNumber =
-      (await database
-        .get<WorkoutSet>('sets')
-        .query(Q.where('workout_exercise_id', workoutExerciseId), Q.where('deleted_at', null))
-        .fetchCount()) + 1;
-
-    await database.write(async () => {
-      await database.get<WorkoutSet>('sets').create((row) => {
-        row.workoutExerciseId = workoutExerciseId;
-        row.setNumber = setNumber;
-        row.weightKg = 0;
-        row.reps = 0;
-        row.isCompleted = false;
-      });
-    });
-  }, []);
-
-  const updateSet = useCallback(
-    async (setId: string, patch: { weightKg?: number; reps?: number }) => {
-      const row = await database.get<WorkoutSet>('sets').find(setId);
-      await database.write(async () => {
-        await row.update((set) => {
-          if (patch.weightKg !== undefined) set.weightKg = patch.weightKg;
-          if (patch.reps !== undefined) set.reps = patch.reps;
+        await database.write(async () => {
+          await database.batch(
+            ...exerciseIds.map((exerciseId, offset) =>
+              database.get<WorkoutExercise>('workout_exercises').prepareCreate((row) => {
+                row.workoutId = workout.id;
+                // ⚠️ Invariant du CHECK serveur (§2.6) : au moins un des deux
+                // ids d'exercice. WatermelonDB ne peut pas l'exprimer, donc
+                // c'est ici qu'il se tient.
+                row.exerciseId = exerciseId;
+                row.customExerciseId = null;
+                row.orderIndex = existing + offset;
+              }),
+            ),
+          );
         });
       });
     },
-    [],
+    [ensureWorkout, runWrite],
   );
 
-  return { view, ready, addExercises, addSet, updateSet };
+  const addSet = useCallback(
+    async (workoutExerciseId: string) => {
+      await runWrite('workout_add_set', async () => {
+        const setNumber =
+          (await database
+            .get<WorkoutSet>('sets')
+            .query(Q.where('workout_exercise_id', workoutExerciseId), Q.where('deleted_at', null))
+            .fetchCount()) + 1;
+
+        await database.write(async () => {
+          await database.get<WorkoutSet>('sets').create((row) => {
+            row.workoutExerciseId = workoutExerciseId;
+            row.setNumber = setNumber;
+            row.weightKg = 0;
+            row.reps = 0;
+            row.isCompleted = false;
+          });
+        });
+      });
+    },
+    [runWrite],
+  );
+
+  const updateSet = useCallback(
+    async (setId: string, patch: { weightKg?: number; reps?: number }) => {
+      // Mise à jour OPTIMISTE de la vue, avant l'écriture.
+      //
+      // Sans elle, l'écran affichait brièvement l'ANCIENNE valeur entre le
+      // moment où le tampon de frappe se vide et celui où la relecture
+      // réactive livre la nouvelle — un flash visible à l'œil, rapporté sur
+      // appareil le 2026-07-27 ("le 8 réapparaît avant le 10").
+      // Le rechargement qui suit écrit la même valeur : aucun risque de
+      // divergence, et en cas d'échec `runWrite` affiche l'erreur.
+      setView((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          exercises: current.exercises.map((exercise) => ({
+            ...exercise,
+            sets: exercise.sets.map((set) =>
+              set.id === setId ? { ...set, ...patch } : set,
+            ),
+          })),
+        };
+      });
+
+      await runWrite('workout_update_set', async () => {
+        const row = await database.get<WorkoutSet>('sets').find(setId);
+        await database.write(async () => {
+          await row.update((set) => {
+            if (patch.weightKg !== undefined) set.weightKg = patch.weightKg;
+            if (patch.reps !== undefined) set.reps = patch.reps;
+          });
+        });
+      });
+    },
+    [runWrite],
+  );
+
+  return { view, ready, error, addExercises, addSet, updateSet };
 }

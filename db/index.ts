@@ -2,6 +2,7 @@ import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import * as Sentry from '@sentry/react-native';
 
+import { workoutMigrations } from './migrations';
 import { Workout } from './models/Workout';
 import { WorkoutExercise } from './models/WorkoutExercise';
 import { WorkoutSet } from './models/WorkoutSet';
@@ -15,6 +16,9 @@ import { workoutSchema } from './schema';
 // vérifié du projet. Recette et pièges dans ARCHITECTURE.md #46.
 const adapter = new SQLiteAdapter({
   schema: workoutSchema,
+  // Indispensable : sans chemin de migration, un appareil déjà installé garde
+  // son ancien schéma en silence quand `workoutSchema.version` change.
+  migrations: workoutMigrations,
   jsi: true,
   onSetUpError: (error) => {
     // Une base illisible est irrécupérable côté UI : on ne peut ni la

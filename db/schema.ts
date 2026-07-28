@@ -1,4 +1,6 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
+// `TableSchemaSpec` n'est pas réexporté à la racine du paquet.
+import type { TableSchemaSpec } from '@nozbe/watermelondb/Schema';
 
 // Schéma WatermelonDB local — ROADMAP 2.6, miroir de DATA_MODEL §2.5-2.7.
 //
@@ -64,49 +66,68 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
 //    être tenues par le code applicatif, sans quoi le push Phase 3 sera
 //    rejeté par Postgres pour des lignes déjà écrites en local.
 
+// Les specs sont exportées et réutilisées telles quelles par
+// `db/migrations.ts` : recopier les colonnes dans la migration créerait une
+// TROISIÈME définition à maintenir, donc une troisième occasion de dérive.
+export const workoutsTableSpec: TableSchemaSpec = {
+  name: 'workouts',
+  columns: [
+    { name: 'profile_id', type: 'string', isIndexed: true },
+    { name: 'title', type: 'string', isOptional: true },
+    { name: 'program_id', type: 'string', isOptional: true },
+    { name: 'started_at', type: 'number' },
+    { name: 'completed_at', type: 'number', isOptional: true },
+    { name: 'total_volume_kg', type: 'number', isOptional: true },
+    { name: 'is_private', type: 'boolean' },
+    { name: 'deleted_at', type: 'number', isOptional: true },
+    { name: 'created_at', type: 'number' },
+    { name: 'updated_at', type: 'number' },
+  ],
+};
+
+export const workoutExercisesTableSpec: TableSchemaSpec = {
+  name: 'workout_exercises',
+  columns: [
+    { name: 'workout_id', type: 'string', isIndexed: true },
+    { name: 'exercise_id', type: 'string', isOptional: true },
+    { name: 'custom_exercise_id', type: 'string', isOptional: true },
+    { name: 'order_index', type: 'number' },
+    { name: 'deleted_at', type: 'number', isOptional: true },
+    { name: 'created_at', type: 'number' },
+    { name: 'updated_at', type: 'number' },
+  ],
+};
+
+export const setsTableSpec: TableSchemaSpec = {
+  name: 'sets',
+  columns: [
+    { name: 'workout_exercise_id', type: 'string', isIndexed: true },
+    { name: 'set_number', type: 'number' },
+    { name: 'weight_kg', type: 'number' },
+    { name: 'reps', type: 'number' },
+    { name: 'rpe', type: 'number', isOptional: true },
+    { name: 'is_completed', type: 'boolean' },
+    { name: 'deleted_at', type: 'number', isOptional: true },
+    { name: 'created_at', type: 'number' },
+    { name: 'updated_at', type: 'number' },
+  ],
+};
+
+// ⚠️ VERSION 2, et pas 1. Le spike du Point Ouvert #46 (commit 0950633) avait
+// laissé sur les appareils de test une base WatermelonDB en version 1, avec
+// ses propres tables jetables. L'adaptateur ne compare QUE le numéro de
+// version : un schéma v1 face à une base v1 est considéré à jour, les tables
+// ne sont jamais créées, et toute requête échoue en "no such table: workouts"
+// — exactement le symptôme observé sur appareil le 2026-07-27.
+//
+// Toute modification ultérieure de ces colonnes DOIT incrémenter ce numéro ET
+// ajouter la migration correspondante dans `db/migrations.ts`. Sans ça, les
+// appareils déjà installés gardent l'ancien schéma en silence.
 export const workoutSchema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
-    tableSchema({
-      name: 'workouts',
-      columns: [
-        { name: 'profile_id', type: 'string', isIndexed: true },
-        { name: 'title', type: 'string', isOptional: true },
-        { name: 'program_id', type: 'string', isOptional: true },
-        { name: 'started_at', type: 'number' },
-        { name: 'completed_at', type: 'number', isOptional: true },
-        { name: 'total_volume_kg', type: 'number', isOptional: true },
-        { name: 'is_private', type: 'boolean' },
-        { name: 'deleted_at', type: 'number', isOptional: true },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'workout_exercises',
-      columns: [
-        { name: 'workout_id', type: 'string', isIndexed: true },
-        { name: 'exercise_id', type: 'string', isOptional: true },
-        { name: 'custom_exercise_id', type: 'string', isOptional: true },
-        { name: 'order_index', type: 'number' },
-        { name: 'deleted_at', type: 'number', isOptional: true },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
-    tableSchema({
-      name: 'sets',
-      columns: [
-        { name: 'workout_exercise_id', type: 'string', isIndexed: true },
-        { name: 'set_number', type: 'number' },
-        { name: 'weight_kg', type: 'number' },
-        { name: 'reps', type: 'number' },
-        { name: 'rpe', type: 'number', isOptional: true },
-        { name: 'is_completed', type: 'boolean' },
-        { name: 'deleted_at', type: 'number', isOptional: true },
-        { name: 'created_at', type: 'number' },
-        { name: 'updated_at', type: 'number' },
-      ],
-    }),
+    tableSchema(workoutsTableSpec),
+    tableSchema(workoutExercisesTableSpec),
+    tableSchema(setsTableSpec),
   ],
 });

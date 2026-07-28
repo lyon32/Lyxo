@@ -45,7 +45,7 @@ export default function ActiveWorkoutScreen() {
   const { t, i18n } = useTranslation();
   const locale: Locale = i18n.language === 'en' ? 'en' : 'fr';
 
-  const { view, ready, addExercises, addSet, updateSet } = useActiveWorkout();
+  const { view, ready, error, addExercises, addSet, updateSet } = useActiveWorkout();
 
   // Le référentiel d'exercices vit dans un store réseau, pas en base locale :
   // après un kill de l'app on rouvre cet écran sans être passé par le sheet,
@@ -146,7 +146,12 @@ export default function ActiveWorkoutScreen() {
   // clavier ou passe à un autre champ.
   const commitBuffer = useCallback(async () => {
     if (!editing || buffer === null) return;
-    const parsed = buffer === '' ? 0 : Number.parseFloat(buffer);
+    // ⚠️ Un tampon VIDE veut dire "rien n'a été saisi", pas "zéro". Le tampon
+    // est initialisé à '' au focus : le traiter comme 0 écrasait la valeur
+    // existante dès qu'on touchait un bloc puis qu'on en sortait sans taper
+    // (bug observé sur appareil le 2026-07-27 : "55 repasse à 0").
+    if (buffer === '') return;
+    const parsed = Number.parseFloat(buffer);
     if (Number.isNaN(parsed)) return;
 
     if (editing.field === 'weight') {
@@ -221,6 +226,18 @@ export default function ActiveWorkoutScreen() {
               }),
             })}
           </Text>
+
+          {/* Une écriture qui échoue doit se voir ICI, pas seulement dans
+              Sentry : sans ça un tap sans effet est indiscernable d'un bug
+              d'interface, et intestable en support. */}
+          {error !== null ? (
+            <View className="mb-4 rounded-card border border-ember bg-card p-4">
+              <Text className="font-inter-semibold text-fg">
+                {t('workout.active.write_error_title')}
+              </Text>
+              <Text className="mt-1 text-sm text-muted">{error}</Text>
+            </View>
+          ) : null}
 
           {!ready ? (
             <View className="py-8">

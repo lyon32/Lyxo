@@ -249,7 +249,8 @@
       "counter_sets_one": "{{count}} série",
       "counter_sets_other": "{{count}} séries",
       "counter_exercises_one": "{{count}} exercice",
-      "counter_exercises_other": "{{count}} exercices"
+      "counter_exercises_other": "{{count}} exercices",
+      "write_error_title": "Enregistrement impossible"
     },
     "input": {
       "weight_label": "Poids",

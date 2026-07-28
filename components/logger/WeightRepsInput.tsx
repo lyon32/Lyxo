@@ -72,6 +72,13 @@ export function WeightRepsInput({
   const primaryIncrement = increments[0];
 
   const swipeWeight = Gesture.Pan()
+    // ⚠️ Activation différée par un appui long (bug observé sur appareil le
+    // 2026-07-27). Ce geste est un pan VERTICAL dans un ScrollView VERTICAL :
+    // sans ce garde-fou, faire défiler la liste en passant le doigt sur le
+    // bloc poids était interprété comme un swipe et décrémentait la charge de
+    // 2,5 par 24 px, jusqu'à la ramener à 0. L'appui long rend le geste
+    // délibéré et rend le défilement au ScrollView.
+    .activateAfterLongPress(250)
     .onBegin(() => {
       consumedTranslation.value = 0;
     })
@@ -85,16 +92,21 @@ export function WeightRepsInput({
       runOnJS(stepWeight)(-steps * primaryIncrement);
     });
 
-  // Un tampon vide (juste après le focus, ou après avoir tout effacé) affiche
-  // "0" plutôt qu'un bloc vide : le hero-number ne doit jamais disparaître.
+  // ⚠️ Un tampon VIDE affiche la valeur réelle, surtout pas "0".
+  //
+  // Le tampon est vide au moment du focus (pour que la première frappe
+  // remplace au lieu de s'ajouter). Afficher "0" à cet instant donnait
+  // l'impression que toucher un bloc effaçait sa valeur — bug rapporté sur
+  // appareil le 2026-07-27 : "je reviens sur l'exercice, le 10 repart à 0".
+  // La donnée n'était jamais perdue, seul l'affichage mentait.
   const weightDisplay =
-    focusedField === 'weight' && editingValue !== null
-      ? formatBuffer(editingValue === '' ? '0' : editingValue, locale)
+    focusedField === 'weight' && editingValue !== null && editingValue !== ''
+      ? formatBuffer(editingValue, locale)
       : weightInputValue(weightKg, unit, locale);
 
   const repsDisplay =
-    focusedField === 'reps' && editingValue !== null
-      ? (editingValue === '' ? '0' : editingValue)
+    focusedField === 'reps' && editingValue !== null && editingValue !== ''
+      ? editingValue
       : String(reps);
 
   return (
