@@ -272,7 +272,8 @@
       "next_up": "Next up",
       "minus_15": "−15 s",
       "plus_15": "+15 s",
-      "skip": "Skip rest"
+      "skip": "Skip rest",
+      "notifications_off": "Notifications are off — this rest won't ring with the screen locked. You can enable them in Android settings."
     }
   }
 }

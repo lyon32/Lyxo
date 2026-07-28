@@ -23,6 +23,10 @@ export interface RestTimerState {
   notificationId: string | null;
   nextExerciseName: string | null;
   nextSetTarget: string | null;
+  // Vrai quand le repos tourne SANS notification programmee (permission
+  // refusee). Rend visible un etat autrement silencieux — PRD §1.4bis
+  // prevoit "un rappel doux" plutot qu'un echec muet.
+  notificationsBlocked: boolean;
   start: (durationSecs: number, next?: { exerciseName?: string; setTarget?: string }) => Promise<void>;
   addSeconds: (deltaSecs: number) => Promise<void>;
   stop: () => Promise<void>;
@@ -36,11 +40,19 @@ export const useRestTimerStore = create<RestTimerState>()(
       notificationId: null,
       nextExerciseName: null,
       nextSetTarget: null,
+      notificationsBlocked: false,
 
       start: async (durationSecs, next) => {
+        const current = get();
+        // IDEMPOTENCE (Point 2) : Si un timer est déjà en cours pour la même fin
+        // et n'est pas expiré, on ne le réinitialise pas à zéro.
+        if (current.endsAt !== null && current.endsAt > Date.now()) {
+          return;
+        }
+
         // Un timer déjà en cours est remplacé : sa notification doit être
         // annulée, sinon elle sonnerait pour un repos qui n'existe plus.
-        await cancelNotification(get().notificationId);
+        await cancelNotification(current.notificationId);
         await configureNotificationChannel();
 
         const endsAt = Date.now() + durationSecs * 1000;
@@ -60,7 +72,10 @@ export const useRestTimerStore = create<RestTimerState>()(
         // L'état a pu changer pendant l'await (skip très rapide) : on ne
         // rattache l'id que si ce timer est toujours celui en cours.
         if (get().endsAt === endsAt) {
-          set({ notificationId });
+          // `null` = la programmation a echoue, quasi toujours faute de
+          // permission. Le repos reste utilisable, mais l'utilisateur doit
+          // savoir qu'il ne sonnera pas ecran verrouille.
+          set({ notificationId, notificationsBlocked: notificationId === null });
         } else {
           await cancelNotification(notificationId);
         }
@@ -104,6 +119,7 @@ export const useRestTimerStore = create<RestTimerState>()(
           notificationId: null,
           nextExerciseName: null,
           nextSetTarget: null,
+          notificationsBlocked: false,
         });
       },
     }),

@@ -23,15 +23,21 @@ export async function configureNotificationChannel(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       enableVibrate: true,
-      // ⚠️ `sound` VOLONTAIREMENT OMIS. Sur un canal, le type est
-      // `string | null` : toute chaîne y est interprétée comme un NOM DE
-      // FICHIER audio à embarquer via le plugin `expo-notifications`. Passer
-      // 'default' produisait donc l'erreur runtime observée le 2026-07-28 :
-      // "Custom sound 'default' not found in native app".
-      // Sans la propriété, Android applique le son de notification système,
-      // ce qui est exactement l'attendu (PRD §1.2 : son/vibration app fermée).
-      // Ne PAS y mettre `true` non plus : le booléen n'est accepté que dans
-      // le `content` d'une notification, pas dans un canal.
+      // ⚠️⚠️ NE JAMAIS AJOUTER `sound` ICI. Réintroduit puis retiré deux fois
+      // le 2026-07-28 — c'est LA cause de l'erreur runtime :
+      //   "Custom sound 'default' not found in native app"
+      //
+      // Sur un CANAL, le type est `string | null` (vérifié dans
+      // NotificationChannelManager.types.d.ts) : toute chaîne y désigne un
+      // NOM DE FICHIER audio à embarquer via le plugin `expo-notifications`.
+      // 'default' n'est donc pas "le son système", c'est un fichier
+      // `default.wav` inexistant.
+      //
+      // Et `sound: true` ne compile pas ici : le booléen n'est accepté que
+      // dans le `content` d'une notification, pas dans un canal.
+      //
+      // Sans la propriété, un canal en importance HIGH utilise le son de
+      // notification système — exactement l'attendu (PRD §1.2).
     });
   } catch (error) {
     // Un canal absent dégrade la notification, il ne casse pas la séance :

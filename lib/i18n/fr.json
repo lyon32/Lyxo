@@ -272,7 +272,8 @@
       "next_up": "Prochaine série",
       "minus_15": "−15 s",
       "plus_15": "+15 s",
-      "skip": "Passer le repos"
+      "skip": "Passer le repos",
+      "notifications_off": "Notifications désactivées — ce repos ne sonnera pas écran verrouillé. Tu peux les activer dans les réglages Android."
     }
   }
 }

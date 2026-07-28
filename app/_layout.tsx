@@ -17,6 +17,7 @@ import i18next from 'i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import * as Notifications from 'expo-notifications';
 import * as Sentry from '@sentry/react-native';
 
 import { useAuthStore } from '../lib/auth-store';
@@ -25,6 +26,20 @@ import { initSentry } from '../lib/sentry';
 
 initSentry();
 SplashScreen.preventAutoHideAsync();
+
+// Notification Handler global (PRD §1.2 & §1.4bis) : obligatoire pour qu'Android/iOS
+// émettent le son et la vibration lorsque la notification de fin de repos se déclenche.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    // `shouldShowAlert` est DÉPRÉCIÉ dans expo-notifications 57 et remplacé
+    // par ce couple — tous deux REQUIS, d'où l'erreur de typage relevée le
+    // 2026-07-28 ("missing shouldShowBanner, shouldShowList").
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default Sentry.wrap(function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

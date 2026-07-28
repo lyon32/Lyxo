@@ -25,6 +25,7 @@ export function RestTimerModal() {
   const nextSetTarget = useRestTimerStore((s) => s.nextSetTarget);
   const addSeconds = useRestTimerStore((s) => s.addSeconds);
   const stop = useRestTimerStore((s) => s.stop);
+  const notificationsBlocked = useRestTimerStore((s) => s.notificationsBlocked);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -38,7 +39,9 @@ export function RestTimerModal() {
     // verrouillé pendant le repos — et c'est ce qui rend le timestamp
     // indispensable : un `setInterval` seul aurait pris du retard.
     const subscription = AppState.addEventListener('change', (status) => {
-      if (status === 'active') setNow(Date.now());
+      if (status === 'active') {
+        setNow(Date.now());
+      }
     });
 
     return () => {
@@ -47,9 +50,24 @@ export function RestTimerModal() {
     };
   }, [endsAt]);
 
-  if (endsAt === null) return null;
-
   const remaining = remainingSeconds(endsAt, now);
+
+  // Fermeture automatique quand le repos est écoulé — y compris s'il s'est
+  // écoulé pendant la mise en veille.
+  //
+  // ⚠️ DANS UN EFFET, jamais pendant le rendu. Appeler `stop()` directement
+  // dans le corps du composant est une mutation d'état en phase de rendu :
+  // React la refuse ("Cannot update a component while rendering a different
+  // component") et cela peut boucler, puisque chaque rendu redéclenche
+  // l'écriture.
+  useEffect(() => {
+    if (endsAt !== null && remaining <= 0) {
+      stop();
+    }
+  }, [endsAt, remaining, stop]);
+
+  if (endsAt === null || remaining <= 0) return null;
+
   const ratio = elapsedRatio(endsAt, totalDurationSecs, now);
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
@@ -94,6 +112,17 @@ export function RestTimerModal() {
             {minutes}:{String(seconds).padStart(2, '0')}
           </Text>
         </View>
+
+        {/* Rappel doux quand le repos tourne sans sonnerie (PRD §1.4bis :
+            "Refus = l'app fonctionne intégralement, avec un rappel doux").
+            Sans cette ligne, l'absence de notification est indiscernable d'un
+            bug — c'est exactement ce qui a coûté un diagnostic complet le
+            2026-07-28, où la permission était refusée au niveau Android. */}
+        {notificationsBlocked ? (
+          <Text className="mt-6 text-center text-sm text-muted">
+            {t('workout.rest.notifications_off')}
+          </Text>
+        ) : null}
 
         {nextExerciseName ? (
           <View className="mt-10 w-full rounded-card border border-border bg-card p-4">
