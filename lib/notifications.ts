@@ -51,10 +51,20 @@ export type PermissionOutcome = 'granted' | 'denied' | 'undetermined';
 export async function getNotificationPermission(): Promise<PermissionOutcome> {
   const { status, canAskAgain } = await Notifications.getPermissionsAsync();
   if (status === 'granted') return 'granted';
-  // `undetermined` = jamais demandé, donc le prompt système est encore
-  // disponible. Un refus définitif (canAskAgain false) est un `denied` dont on
-  // ne peut plus sortir depuis l'app.
-  return status === 'undetermined' && canAskAgain ? 'undetermined' : 'denied';
+
+  // ⚠️ NE PAS se fier au statut `undetermined` sur Android.
+  //
+  // Android 13 ne distingue pas "jamais demandé" de "refusé" : une
+  // permission jamais sollicitée est rapportée `denied`. Exiger
+  // `status === 'undetermined'` classait donc tout premier lancement en
+  // refus définitif — le priming ne s'affichait jamais, le prompt système
+  // n'était jamais déclenché, et les notifications restaient muettes SANS
+  // qu'aucune erreur n'apparaisse. Constaté sur appareil le 2026-07-28,
+  // après une réinstallation qui avait remis la permission à zéro.
+  //
+  // La seule question qui compte en pratique est : « peut-on encore
+  // demander ? ». C'est exactement ce que porte `canAskAgain`.
+  return canAskAgain ? 'undetermined' : 'denied';
 }
 
 // ⚠️ À n'appeler QU'APRÈS l'écran de priming interne (LLD §6.5bis).
