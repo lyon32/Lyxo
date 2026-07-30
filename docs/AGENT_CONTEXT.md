@@ -28,6 +28,7 @@ Hors scope explicite : [ex. ne pas toucher à la sync, ne pas commencer 2.5]
 
 | Besoin | Document |
 |---|---|
+| **Quelle skill charger AVANT de coder ou designer** (table tâche→skill) | `../AGENTS.md` — chargé automatiquement, pas à ouvrir |
 | Pourquoi ce produit existe, pour qui, ce qu'on NE construit PAS | `PROJECT_BRIEF.md` |
 | Quelle feature, quel statut (MVP/V2), quels edge cases | `PRD.md` |
 | Combien ça coûte, quels tiers, quelles règles de trial | `PRICING.md` |
@@ -49,7 +50,16 @@ Hors scope explicite : [ex. ne pas toucher à la sync, ne pas commencer 2.5]
 **Ordre de lecture recommandé pour une session nouvelle sur un module
 inconnu** : ce fichier → ROADMAP.md (situer la tâche) → PRD.md (la
 feature précise) → LLD.md (où coder) → CLAUDE_LYXO_V3.md (la règle
-détaillée si besoin) → CONVENTIONS.md (comment l'écrire).
+détaillée si besoin) → CONVENTIONS.md (comment l'écrire) → **charger la
+skill correspondante (`../AGENTS.md`) AVANT d'écrire la première ligne**.
+
+> ⚠️ `AGENTS.md` (racine) est chargé automatiquement à chaque session via
+> `CLAUDE.md` — il n'a pas à être ouvert, mais il doit être *appliqué* :
+> la skill se charge **avant** de produire, jamais après. Une skill lue
+> après coup ne change rien à ce qui est déjà écrit. Il porte aussi les
+> exclusions (skills web et skills Android natives qui ne s'appliquent
+> PAS à cette app React Native) — les ignorer produit des conseils faux,
+> pas seulement inutiles.
 
 ---
 
