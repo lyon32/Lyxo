@@ -36,6 +36,35 @@ transitions` (browser API), `web-design-guidelines`. React Native has no
 DOM — these have nothing to bind to and their advice will be wrong.
 They apply to `lyxo-web/` only.
 
+## Android skills (`.claude/skills/`, project level)
+
+Google's Android skills, 20 of them. They target **native** Android
+(Jetpack Compose, Kotlin), so most do not apply to a React Native app.
+These six do:
+
+| Task at hand | Skill to invoke |
+|---|---|
+| `adb`, emulator, logcat, device inspection from the CLI | `android-cli` |
+| Root-causing latency / jank / memory on the low-end device (DoD 2.12) | `perfetto-trace-analysis` |
+| Writing a Perfetto trace query | `perfetto-sql` |
+| Release build size, R8 / ProGuard keep rules (`minifyEnabled` is on) | `r8-analyzer` |
+| Play Store policy audit before publishing (Phase 7) | `play-policy-insights` |
+| Auditing deep links / intents (coach invite links, `/invite/:code`) | `android-intent-security` |
+
+**Do not invoke the other fourteen on this app.** `adaptive`, `styles`,
+`navigation-3`, `edge-to-edge`, `migrate-xml-views-to-jetpack-compose`,
+`camerax`, `wear-compose-m3`, `display-glasses-*`, `appfunctions`,
+`engage-sdk-integration`, `verified-email`, `testing-setup` (native JUnit/
+Espresso), `play-billing-library-version-upgrade` (LYXO bills through
+RevenueCat) and `agp-9-upgrade` (only if an AGP bump ever breaks the Expo
+build) all assume a Compose/Kotlin codebase that LYXO does not have.
+Edge-to-edge *is* a real Android 15 concern here, but it is handled on the
+Expo side — the Compose skill does not apply.
+
+⚠️ `.claude/skills/` is **never committed** (see the end of this file).
+The list above documents what is on this machine; a fresh clone will not
+have it.
+
 **Duplicates — resolved, do not deliberate:**
 - `mobile-app-ui-design` (user level, from
   https://github.com/ceorkm/mobile-app-ui-design) is **the one to use**.
