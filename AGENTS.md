@@ -15,10 +15,11 @@ visible and reviewable — never silently.
 
 Only two ways out, and both must be stated out loud:
 - **No row matches.** Say so in one sentence, then proceed. Do not go
-  browsing the ~294 installed skills for something adjacent — most target
-  Python, Go, Rust, Kubernetes, web3, MLOps or finance and have nothing to
-  do with an Expo app. **This table is the allowlist for LYXO**, not a
-  starting point.
+  browsing the installed skills for something adjacent. **This table is
+  the allowlist for LYXO**, not a starting point. (144 out-of-scope skills
+  — Python, Go, Rust, Kubernetes, web3, MLOps, finance, PPTX — were
+  deleted on 2026-07-30; the ~50 `seo-*` and web ones were kept on purpose
+  for `lyxo-web/` when the site gets built.)
 - **A row matches but the skill is wrong here.** Name the conflict and why
   (see "Project docs win" at the end), then proceed without it.
 
