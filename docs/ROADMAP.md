@@ -437,11 +437,19 @@
   laisser cochable aurait fait implémenter ce que la spec venait de
   retirer. Conservée barrée plutôt que supprimée, pour que la
   numérotation 2.8-2.12 reste stable et que la décision soit traçable.
-- [ ]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
+- [x]  **2.8** Rest timer plein écran (anneau, ±15s, skip, next up) —
   implémentation par TIMESTAMP persisté + notification locale
   programmée (PRD 1.2 : doit survivre au verrouillage d'écran/appel).
-  **Code livré et vérifié statiquement (commits 28a2193, b543b99), DoD
-  appareil encore à valider.** `lib/rest-timer.ts` (calculs purs, 11 tests
+  **DoD appareil validé le 2026-07-28** (commit 659f1a2) : timestamp
+  recalculé correctement après 30s écran verrouillé, notification son +
+  vibration reçue écran verrouillé. Trois bugs trouvés et corrigés en
+  cours de validation : plugin `expo-notifications` absent d'`app.json`
+  (natif jamais généré malgré la dépendance JS), idempotence de
+  `rest-timer-store.start()` bloquant tout nouveau repos tant qu'un
+  timer périmé traînait en storage persisté, et `now` non resynchronisé
+  immédiatement au démarrage d'un nouveau repos dans `RestTimerModal`
+  (flash d'une durée fausse). Une série déjà validée ne relance plus le
+  repos au tap. `lib/rest-timer.ts` (calculs purs, 11 tests
   avec horloge injectée), `lib/rest-timer-store.ts` (`endsAt` persisté en
   AsyncStorage), `lib/notifications.ts`, `components/logger/
   RestTimerModal.tsx` (anneau SVG derrière les chiffres à 30 %),
@@ -471,8 +479,14 @@
   Note : `expo prebuild` efface `android/gradle.properties`, donc les
   timeouts réseau Gradle allongés (réseau instable) sont à remettre après
   chaque prebuild — ou à porter dans un plugin `expo-build-properties`.
-- [ ]  **2.9** `lib/pr-detection.ts` + tests unitaires (règles §18.1
-  complètes : plausibilité, delta, ancienneté).11
+- [x]  **2.9** `lib/pr-detection.ts` + tests unitaires (règles §18.1
+  complètes : plausibilité, delta, ancienneté). `detectPRs` couvre les 4
+  types (`weight`, `volume`, `reps`, `1rm` — DATA_MODEL.md §2.8),
+  `evaluatePRSocialEligibility` implémente l'ordre plausibilité > delta >
+  ancienneté (LLD §3.1). 1RM estimé via Epley (non prescrit par la spec,
+  choisi pour sa simplicité — pas de RPE saisi dans l'app). 15/15 tests,
+  `tsc --noEmit` propre. Pas encore branché sur `active.tsx` : détection
+  pure seulement, l'appel à la validation d'une série reste pour 2.10.
 - [ ]  **2.10** Célébration PR (carte partageable, pas de photo).
 - [ ]  **2.11** Écran résumé fin de séance (peak-end).
 - [ ]  **2.12** DoD check : parcours complet testable en mode avion sur
