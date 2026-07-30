@@ -23,6 +23,7 @@ import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../lib/auth-store';
 import { getStoredLanguage } from '../lib/onboarding-storage';
 import { initSentry } from '../lib/sentry';
+import { startSupabaseAutoRefreshGating } from '../lib/supabase-auto-refresh';
 
 initSentry();
 SplashScreen.preventAutoHideAsync();
@@ -52,6 +53,7 @@ export default Sentry.wrap(function RootLayout() {
 
   useEffect(() => {
     useAuthStore.getState().bootstrap();
+    startSupabaseAutoRefreshGating();
   }, []);
 
   useEffect(() => {

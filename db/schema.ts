@@ -55,6 +55,21 @@ import type { TableSchemaSpec } from '@nozbe/watermelondb/Schema';
 // │ deleted_at / created_at / upd.  │ idem, num        │                   │
 // └─────────────────────────────────┴──────────────────┴───────────────────┘
 //
+// ┌─ personal_records (§2.8) ───────┬──────────────────┬───────────────────┐
+// │ profile_id uuid not null        │ profile_id str   │ indexé            │
+// │ exercise_id uuid not null       │ exercise_id str  │ indexé            │
+// │ set_id uuid (nullable)          │ set_id str?      │                   │
+// │ weight_kg numeric not null      │ weight_kg num    │                   │
+// │ reps int not null               │ reps num         │                   │
+// │ estimated_1rm_kg numeric        │ estimated_1rm n? │                   │
+// │ pr_type text not null CHECK     │ pr_type str      │ ⚠️ CHECK non       │
+// │                                 │                  │ exprimable en WMDB │
+// │ is_social_eligible bool not null│ is_social_elig b │ défaut true       │
+// │ ineligibility_reason text       │ ineligibility s? │                   │
+// │ achieved_at timestamptz not null│ achieved_at num  │ epoch ms          │
+// │ deleted_at / created_at / upd.  │ idem, num        │                   │
+// └─────────────────────────────────┴──────────────────┴───────────────────┘
+//
 // Deux écarts STRUCTURELS, assumés et non corrigeables :
 // 1. WatermelonDB n'a que trois types de colonnes (string/number/boolean).
 //    Les `timestamptz` deviennent des nombres (epoch ms), les `numeric` des
@@ -113,6 +128,25 @@ export const setsTableSpec: TableSchemaSpec = {
   ],
 };
 
+export const personalRecordsTableSpec: TableSchemaSpec = {
+  name: 'personal_records',
+  columns: [
+    { name: 'profile_id', type: 'string', isIndexed: true },
+    { name: 'exercise_id', type: 'string', isIndexed: true },
+    { name: 'set_id', type: 'string', isOptional: true },
+    { name: 'weight_kg', type: 'number' },
+    { name: 'reps', type: 'number' },
+    { name: 'estimated_1rm_kg', type: 'number', isOptional: true },
+    { name: 'pr_type', type: 'string' },
+    { name: 'is_social_eligible', type: 'boolean' },
+    { name: 'ineligibility_reason', type: 'string', isOptional: true },
+    { name: 'achieved_at', type: 'number' },
+    { name: 'deleted_at', type: 'number', isOptional: true },
+    { name: 'created_at', type: 'number' },
+    { name: 'updated_at', type: 'number' },
+  ],
+};
+
 // ⚠️ VERSION 2, et pas 1. Le spike du Point Ouvert #46 (commit 0950633) avait
 // laissé sur les appareils de test une base WatermelonDB en version 1, avec
 // ses propres tables jetables. L'adaptateur ne compare QUE le numéro de
@@ -124,10 +158,11 @@ export const setsTableSpec: TableSchemaSpec = {
 // ajouter la migration correspondante dans `db/migrations.ts`. Sans ça, les
 // appareils déjà installés gardent l'ancien schéma en silence.
 export const workoutSchema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     tableSchema(workoutsTableSpec),
     tableSchema(workoutExercisesTableSpec),
     tableSchema(setsTableSpec),
+    tableSchema(personalRecordsTableSpec),
   ],
 });

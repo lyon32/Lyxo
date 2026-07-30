@@ -1,9 +1,32 @@
 import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { create } from 'zustand';
 
 import { pushOnboardingChoicesIfAny } from './push-onboarding-choices';
 import { supabase } from './supabase';
+
+// Identité localement mise en cache (SecureStore, comme le JWT lui-même) —
+// distincte de `getSession()`, qui reste réservé aux appels API réellement
+// authentifiés. Raison complète dans `db/use-active-workout.ts`
+// (`currentProfileId`) : `getSession()` peut renvoyer une session VIDE hors
+// ligne si le token est expiré (le rafraîchissement réseau qu'il tente
+// échoue), alors que l'identité d'un profil déjà connecté ne change pas et
+// n'a aucune raison d'être reconfirmée en réseau pour une écriture purement
+// locale (WatermelonDB).
+const CACHED_PROFILE_ID_KEY = 'lyxo-cached-profile-id';
+
+export async function getCachedProfileId(): Promise<string | null> {
+  return SecureStore.getItemAsync(CACHED_PROFILE_ID_KEY);
+}
+
+async function cacheProfileId(userId: string | null): Promise<void> {
+  if (userId) {
+    await SecureStore.setItemAsync(CACHED_PROFILE_ID_KEY, userId);
+  } else {
+    await SecureStore.deleteItemAsync(CACHED_PROFILE_ID_KEY);
+  }
+}
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -38,10 +61,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       set({ status: session ? 'signed-in' : 'signed-out' });
+      cacheProfileId(session?.user.id ?? null);
     });
 
     supabase.auth.onAuthStateChange((event, session) => {
       set({ status: session ? 'signed-in' : 'signed-out' });
+      cacheProfileId(session?.user.id ?? null);
       if (event === 'SIGNED_IN') {
         // billing_region n'est PLUS recalculé ici (BILLING_FLOW.md §2 :
         // "jamais recalculée en douce") — le vrai déclencheur unique est

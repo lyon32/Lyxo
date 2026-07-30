@@ -389,6 +389,42 @@ function evaluatePRSocialEligibility(
 }
 ```
 
+**Les deux voies d'un PR (AJOUTÉ 2026-07-30)** — jusqu'ici implicites dans
+`pr_type`, jamais écrites. Une série validée peut produire un PR de deux
+façons, et les deux comptent :
+
+1. **PR direct** — la valeur saisie bat l'historique telle quelle.
+   100 kg × 1 rep alors que le meilleur était 95 kg → `pr_type='weight'`.
+   Même logique pour `'reps'` (plus de reps à charge égale) et `'volume'`
+   (charge × reps cumulé sur l'exercice).
+2. **PR estimé** — la série ne bat rien en charge brute, mais sa
+   projection à 1 répétition bat l'ancienne projection. 80 kg × 8 reps ne
+   bat pas un record de 100 kg en charge, mais projette 101,3 kg et bat
+   donc un 1RM estimé de 95 kg → `pr_type='1rm'`.
+
+```typescript
+// Epley — choisie pour sa simplicité, aucun RPE saisi dans l'app (ROADMAP 2.9)
+function estimate1RM(weightKg: number, reps: number): number {
+  return weightKg * (1 + reps / 30);
+}
+// 80 × (1 + 8/30) = 101,3 kg
+// reps === 1 → la formule rend weightKg inchangé, pas de cas particulier.
+```
+
+Pourquoi le 1RM estimé n'est pas un raffinement optionnel : sans lui, un
+utilisateur qui progresse en reps à charge constante ne battrait jamais de
+record, alors que c'est la forme de progrès la plus courante — et la seule
+sûre. Tenter un vrai 1RM à chaque séance est risqué sans pareur et
+coûteux nerveusement ; l'estimation est ce qui rend le suivi continu
+possible. Un PR estimé se célèbre donc exactement comme un PR direct.
+
+⚠️ `estimated_1rm_kg` est calculé et stocké sur **chaque** PR
+(DATA_MODEL §2.8), pas seulement sur ceux de `pr_type='1rm'` — c'est la
+série de valeurs que trace le graphe 1RM de l'écran Progrès (ROADMAP 4.2).
+Et il est **gratuit pour tout le monde** : PRICING.md §"PRs & 1RM estimé"
+et CLAUDE_LYXO_V3.md §2376 — « calculés sur TOUT l'historique pour TOUT
+LE MONDE ». Ce n'est pas une fonctionnalité de tier payant.
+
 ### 3.2 Résolution de conflit de sync (LWW silencieux, Q12a)
 ```typescript
 // lib/sync/conflict-resolution.ts
@@ -645,9 +681,32 @@ stats row (Duration / Exercises / PRs) → row social (Likes / Comments) →
 **photo si postée** (optionnelle, jamais obligatoire au moment du post) →
 schéma anatomique → liste d'exercices.
 
-- **PR** (stat "PRs") = volume max historique atteint sur cet exercice
-  (pas poids max, pas 1RM estimé — distinct de la logique 1RM déjà en
-  place pour le tier payant, CLAUDE_LYXO_V3.md Tier 2 item 2).
+- **PR** (stat "PRs") = **nombre de PR obtenus pendant cette séance**,
+  tous types confondus — `weight`, `volume`, `reps`, `1rm`
+  (DATA_MODEL.md §2.8, détection en LLD §3.1).
+
+  > ⚠️ CORRECTION 2026-07-30. La version précédente disait « volume max
+  > historique atteint sur cet exercice (pas poids max, pas 1RM estimé —
+  > distinct de la logique 1RM déjà en place pour le tier payant) ». Elle
+  > était fausse sur trois points :
+  > 1. **Le 1RM estimé n'est pas une fonctionnalité payante.**
+  >    PRICING.md et CLAUDE_LYXO_V3.md §2376 sont explicites : « PRs et
+  >    1RM estimé calculés sur TOUT l'historique pour TOUT LE MONDE ».
+  >    L'exclure d'un écran gratuit contredisait la grille tarifaire.
+  > 2. **`pr_type` admet quatre valeurs** depuis DATA_MODEL §2.8, et
+  >    `detectPRs` les couvre toutes les quatre depuis ROADMAP 2.9
+  >    (livré). Restreindre l'affichage au volume aurait masqué à
+  >    l'utilisateur des records réellement enregistrés en base — un
+  >    écran qui affiche « PRs : 0 » alors que `personal_records` en
+  >    contient deux.
+  > 3. Une **stat de séance compte un nombre**, elle n'exprime pas un
+  >    maximum historique sur un exercice. « PRs : 2 » se lit « tu as
+  >    battu deux records aujourd'hui », ce qui est le sens attendu à
+  >    côté de Duration et Exercises.
+  >
+  > Si tu veux malgré tout restreindre le compteur à un sous-ensemble de
+  > types, c'est un filtre d'affichage à écrire ici explicitement — pas
+  > une redéfinition de ce qu'est un PR.
 - **Schéma anatomique** : 2 assets fixes (vue face + vue dos), sélection
   logique selon les muscles travaillés dans la séance — pas un seul asset
   qui pivote. Palette de highlight par groupe musculaire **dédiée et
@@ -734,9 +793,16 @@ min, clavier custom sticky).
 passage obligé pour terminer une séance — cf. §6.3, la photo n'apparaît
 dans le détail workout que si elle a été postée.
 
-**Écran de fin de séance : minimal** (effet peak-end, ROADMAP 2.11) —
-grand compteur + une ligne de félicitation courte. ⚠️ Pas de récapitulatif
-de stats sur cet écran : c'est un choix, pas un oubli.
+**Écran de fin de séance : version riche de LYXO_UI_PROMPT.md §5bis**
+(effet peak-end, ROADMAP 2.11, décidé le 2026-07-30) — hero volume total +
+delta vs la séance précédente, jour nommé, stat row durée/séries/exercices,
+cartes PR de la séance empilées, CTA "Partager en story" + ghost
+"Terminer". ⚠️ Cette section disait auparavant l'inverse ("minimal, pas de
+récapitulatif — un choix, pas un oubli") ; corrigé pour ne plus contredire
+`app/workout/summary.tsx`, qui implémente la version riche. L'animation
+"week-strip check" du mockup n'est PAS câblée depuis cet écran : le
+`StreakCalendar` de Home n'est pas encore branché à de vraies données
+(`ACTIVE_DATE_KEYS` reste un placeholder statique) — chantier Home séparé.
 
 ### 6.6 Settings
 v1 actif : Theme (Auto/Light/Dark segmented), unité poids (KG/LBS),

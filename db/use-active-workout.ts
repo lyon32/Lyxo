@@ -6,7 +6,7 @@ import { database } from './index';
 import type { Workout } from './models/Workout';
 import type { WorkoutExercise } from './models/WorkoutExercise';
 import type { WorkoutSet } from './models/WorkoutSet';
-import { supabase } from '../lib/supabase';
+import { getCachedProfileId } from '../lib/auth-store';
 
 export interface ActiveSetView {
   id: string;
@@ -29,11 +29,41 @@ export interface ActiveWorkoutView {
   totalSets: number;
 }
 
-async function currentProfileId(): Promise<string | null> {
-  // getSession() lit le cache local (SecureStore) — pas d'aller-retour
-  // réseau, ce qui compte pour un écran qui doit s'ouvrir hors ligne.
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
+// Lecture DIRECTE en base, jamais depuis `view` — le state React d'un hook
+// appelant est capturé dans une closure au moment du rendu et ne reflète pas
+// une écriture qu'on vient de faire dans LA MÊME fonction async, même après
+// l'avoir attendue : React ne rafraîchit `view` qu'au rendu SUIVANT, avec une
+// nouvelle instance de la fonction. Lire `view` juste après un `updateSet`
+// pour la même série renvoyait donc l'ancienne valeur (souvent `reps: 0`, le
+// défaut d'`addSet`) — bug constaté sur appareil le 2026-07-30 : une série
+// à 25 reps validée juste après la saisie se voyait créditée d'un PR
+// "Volume 0 kg / Reps 0".
+export async function getSetSnapshot(
+  setId: string,
+): Promise<{ weightKg: number; reps: number } | null> {
+  const row = await database.get<WorkoutSet>('sets').find(setId);
+  return { weightKg: row.weightKg, reps: row.reps };
+}
+
+// ⚠️ Lu depuis un cache LOCAL (SecureStore, écrit par `lib/auth-store.ts` à
+// chaque changement de session) — surtout PAS `supabase.auth.getSession()`.
+// L'ancien commentaire ici affirmait que `getSession()` "lit le cache local,
+// pas d'aller-retour réseau" : FAUX dès que le token d'accès est expiré.
+// Dans ce cas supabase-js tente un rafraîchissement RÉSEAU avant de
+// répondre, et renvoie une session VIDE si ce refresh échoue — exactement
+// ce qui se produit hors ligne. Bug constaté sur appareil le 2026-07-30
+// (DoD ROADMAP 2.12) : "Aucune session : impossible de créer la séance" en
+// mode avion, alors qu'un utilisateur était bel et bien connecté.
+//
+// L'identité d'un profil déjà connecté ne change pas hors ligne : il n'y a
+// aucune raison de la reconfirmer en réseau pour une écriture purement
+// LOCALE (WatermelonDB). Rien ne quitte l'appareil avant la sync (Phase 3),
+// où le serveur revalide de toute façon le vrai JWT (API_SPEC §1) — jamais
+// confiance dans un `profile_id` envoyé par le client. `getSession()` reste
+// le bon choix pour un appel API réellement authentifié, pas pour savoir
+// dans quelle ligne locale écrire.
+export async function currentProfileId(): Promise<string | null> {
+  return getCachedProfileId();
 }
 
 // La séance "en cours" est celle qui n'a pas de `completed_at` — c'est ce
@@ -275,5 +305,52 @@ export function useActiveWorkout() {
     [runWrite],
   );
 
-  return { view, ready, error, addExercises, addSet, updateSet };
+  // Termine la séance en cours (ROADMAP 2.11) : seul `completed_at` distingue
+  // une séance ouverte d'une séance terminée (DATA_MODEL §2.5). Le volume
+  // total est figé ici plutôt que recalculé à chaque lecture — le résumé
+  // peak-end doit rester correct même si des sets sont modifiés plus tard.
+  //
+  // ⚠️ Calculé depuis une lecture DIRECTE en base, jamais depuis `view` :
+  // `view` est un state React qui peut ne pas avoir encore absorbé la toute
+  // dernière écriture (ex. "Terminer la séance" tapé juste après avoir
+  // validé la dernière série, avant que la souscription réactive ne
+  // rafraîchisse `view`) — même classe de bug que celle corrigée dans
+  // `getSetSnapshot` ci-dessus.
+  const finishWorkout = useCallback(async (): Promise<string | null> => {
+    const profileId = await currentProfileId();
+    if (!profileId) return null;
+    const workout = await findOpenWorkout(profileId);
+    if (!workout) return null;
+
+    let finishedId: string | null = null;
+    await runWrite('workout_finish', async () => {
+      const workoutExercises = await database
+        .get<WorkoutExercise>('workout_exercises')
+        .query(Q.where('workout_id', workout.id), Q.where('deleted_at', null))
+        .fetch();
+      const completedSets =
+        workoutExercises.length === 0
+          ? []
+          : await database
+              .get<WorkoutSet>('sets')
+              .query(
+                Q.where('workout_exercise_id', Q.oneOf(workoutExercises.map((we) => we.id))),
+                Q.where('is_completed', true),
+                Q.where('deleted_at', null),
+              )
+              .fetch();
+      const totalVolumeKg = completedSets.reduce((sum, set) => sum + set.weightKg * set.reps, 0);
+
+      await database.write(async () => {
+        await workout.update((row) => {
+          row.completedAt = new Date();
+          row.totalVolumeKg = totalVolumeKg;
+        });
+      });
+      finishedId = workout.id;
+    });
+    return finishedId;
+  }, [runWrite]);
+
+  return { view, ready, error, addExercises, addSet, updateSet, finishWorkout };
 }

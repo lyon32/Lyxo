@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Plus, X } from 'lucide-react-native';
+import { Flag, Plus, X } from 'lucide-react-native';
 
 import { EmptyState } from '../../components/EmptyState';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { NotificationPrimingModal } from '../../components/NotificationPrimingModal';
 import { NumberKeyboard } from '../../components/logger/NumberKeyboard';
+import { PRCelebrationModal } from '../../components/logger/PRCelebrationModal';
 import { RestTimerModal } from '../../components/logger/RestTimerModal';
 import { WeightRepsInput, type WeightRepsField } from '../../components/logger/WeightRepsInput';
 import {
@@ -15,13 +17,16 @@ import {
 } from '../../lib/notifications';
 import { useRestTimerStore } from '../../lib/rest-timer-store';
 import {
+  currentProfileId,
+  getSetSnapshot,
   useActiveWorkout,
   type ActiveExerciseView,
   type ActiveSetView,
 } from '../../db/use-active-workout';
+import { recordSetPRs, type CelebratedPR } from '../../db/pr-recording';
 import { type Exercise, useExercisesStore } from '../../lib/exercises-store';
 import { goBackSafely } from '../../lib/safe-back';
-import { lbsToKg, type Locale, type WeightUnit } from '../../lib/units';
+import { formatWeight, lbsToKg, type Locale, type WeightUnit } from '../../lib/units';
 
 interface EditingTarget {
   setId: string;
@@ -56,7 +61,8 @@ export default function ActiveWorkoutScreen() {
   const { t, i18n } = useTranslation();
   const locale: Locale = i18n.language === 'en' ? 'en' : 'fr';
 
-  const { view, ready, error, addExercises, addSet, updateSet } = useActiveWorkout();
+  const { view, ready, error, addExercises, addSet, updateSet, finishWorkout } = useActiveWorkout();
+  const router = useRouter();
 
   // Le référentiel d'exercices vit dans un store réseau, pas en base locale :
   // après un kill de l'app on rouvre cet écran sans être passé par le sheet,
@@ -85,6 +91,15 @@ export default function ActiveWorkoutScreen() {
   const [primingVisible, setPrimingVisible] = useState(false);
   // Le repos à démarrer une fois que l'utilisateur a répondu au priming.
   const pendingRestRef = useRef<{ exerciseName: string } | null>(null);
+
+  // Célébration PR (ROADMAP 2.10) : quand une série valide un ou plusieurs
+  // records, le repos est différé jusqu'à la fermeture de cet écran — sinon
+  // les deux plein-écran se disputeraient l'affichage.
+  const [celebration, setCelebration] = useState<{
+    exerciseName: string;
+    prs: CelebratedPR[];
+  } | null>(null);
+  const pendingRestAfterCelebrationRef = useRef<{ exerciseName: string } | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
@@ -204,18 +219,9 @@ export default function ActiveWorkoutScreen() {
     await updateSet(setId, patch);
   };
 
-  // Validation d'une série : elle est marquée faite et le repos démarre
-  // (PRD §1.2). Le repos est le vrai enchaînement d'une séance — c'est ce
-  // moment-là qui justifie la permission notifications, pas le lancement de
-  // l'app (PRD §1.4bis).
-  const validateSet = async (setId: string, exerciseName: string) => {
-    await commitBuffer();
-    setEditing(null);
-    setBuffer(null);
-    await updateSet(setId, { isCompleted: true });
-
-    const next = { exerciseName };
-
+  // Démarrage effectif du repos, factorisé : appelé directement quand aucun
+  // PR n'a été détecté, ou après la fermeture de la célébration PR sinon.
+  const startRestFlow = async (next: { exerciseName: string }) => {
     // Le prompt système Android n'existe qu'une fois : on passe d'abord par
     // l'écran de priming interne (LLD §6.5bis). Le contrôle est local et
     // instantané, il ne retarde pas la séance de façon perceptible.
@@ -226,6 +232,50 @@ export default function ActiveWorkoutScreen() {
       return;
     }
     await startRest(REST_DEFAULT_SECS, next);
+  };
+
+  // Validation d'une série : elle est marquée faite, un PR éventuel est
+  // détecté et enregistré (ROADMAP 2.9/2.10), puis le repos démarre (PRD
+  // §1.2) — après la célébration s'il y en a une, pour ne pas superposer
+  // deux plein-écran.
+  const validateSet = async (
+    setId: string,
+    exerciseId: string | null,
+    exerciseName: string,
+  ) => {
+    await commitBuffer();
+    setEditing(null);
+    setBuffer(null);
+
+    await updateSet(setId, { isCompleted: true });
+
+    // Lu directement en base APRÈS l'écriture, jamais depuis `view` : le
+    // state React de ce rendu est une closure périmée qui ne reflète pas le
+    // `commitBuffer`/`updateSet` qu'on vient d'attendre (bug constaté sur
+    // appareil le 2026-07-30 — voir `getSetSnapshot`).
+    const setSnapshot = await getSetSnapshot(setId);
+
+    const next = { exerciseName };
+
+    if (exerciseId && setSnapshot) {
+      const profileId = await currentProfileId();
+      if (profileId) {
+        const prs = await recordSetPRs({
+          profileId,
+          exerciseId,
+          setId,
+          weightKg: setSnapshot.weightKg,
+          reps: setSnapshot.reps,
+        });
+        if (prs.length > 0) {
+          setCelebration({ exerciseName, prs });
+          pendingRestAfterCelebrationRef.current = next;
+          return;
+        }
+      }
+    }
+
+    await startRestFlow(next);
   };
 
   const handleEnableNotifications = async () => {
@@ -245,6 +295,47 @@ export default function ActiveWorkoutScreen() {
     // "Plus tard" ne consomme pas le prompt système : on pourra redemander au
     // repos suivant.
     await startRest(REST_DEFAULT_SECS, pending ?? undefined);
+  };
+
+  // "Partager en story" : LYXO n'a pas encore d'écran Stories (composer/feed
+  // social — Phase 4+, LLD.md components/social/). En attendant, la feuille
+  // de partage native du téléphone reste un CTA fonctionnel dès aujourd'hui.
+  const handleShareCelebration = async () => {
+    if (!celebration) return;
+    const eligible = celebration.prs.find((pr) => pr.isSocialEligible) ?? celebration.prs[0];
+    try {
+      await Share.share({
+        message: t('workout.pr.share_message', {
+          exerciseName: celebration.exerciseName,
+          value:
+            eligible.type === 'reps'
+              ? `${eligible.value}`
+              : formatWeight(eligible.value, DISPLAY_UNIT, locale),
+        }),
+      });
+    } catch {
+      // Feuille de partage annulée ou indisponible : rien à faire, l'écran
+      // reste ouvert pour laisser "Continuer" comme sortie normale.
+    }
+  };
+
+  const handleDismissCelebration = async () => {
+    setCelebration(null);
+    const pending = pendingRestAfterCelebrationRef.current;
+    pendingRestAfterCelebrationRef.current = null;
+    if (pending) {
+      await startRestFlow(pending);
+    }
+  };
+
+  // Termine la séance (ROADMAP 2.11) : marque `completed_at`, fige le volume
+  // total, puis bascule sur le résumé peak-end — jamais retour en arrière
+  // possible vers une séance déjà terminée, d'où `replace` et non `push`.
+  const handleFinishWorkout = async () => {
+    const workoutId = await finishWorkout();
+    if (workoutId) {
+      router.replace({ pathname: '/workout/summary', params: { id: workoutId } });
+    }
   };
 
   return (
@@ -321,14 +412,17 @@ export default function ActiveWorkoutScreen() {
                   onAddSet={() => addSet(item.id)}
                   onFocusField={focusField}
                   onStepSet={stepSet}
-                  onValidateSet={(setId) =>
-                    validateSet(
-                      setId,
-                      item.exerciseId
-                        ? (exercisesById.get(item.exerciseId)?.name_fr ?? '')
-                        : '',
-                    )
-                  }
+                  onValidateSet={(setId) => {
+                    const foundExercise = item.exerciseId
+                      ? exercisesById.get(item.exerciseId)
+                      : undefined;
+                    const exerciseName = foundExercise
+                      ? i18n.language === 'en'
+                        ? foundExercise.name_en
+                        : foundExercise.name_fr
+                      : '';
+                    validateSet(setId, item.exerciseId, exerciseName);
+                  }}
                 />
               ))}
             </View>
@@ -341,6 +435,18 @@ export default function ActiveWorkoutScreen() {
             <Plus color="#F5F1EC" size={20} />
             <Text className="font-inter-semibold text-fg">{t('workout.active.add_exercise')}</Text>
           </Pressable>
+
+          {view && view.exercises.length > 0 ? (
+            <Pressable
+              onPress={handleFinishWorkout}
+              className="mt-3 min-h-tap flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4"
+            >
+              <Flag color="#F5F1EC" size={18} />
+              <Text className="font-inter-semibold text-fg">
+                {t('workout.active.finish_workout')}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
 
@@ -360,6 +466,20 @@ export default function ActiveWorkoutScreen() {
           existe dans le store, y compris après un kill de l'app si le repos
           court toujours (état persisté en AsyncStorage). */}
       <RestTimerModal />
+
+      {/* Le repos ne démarre pas tant que cette carte est ouverte
+          (`handleDismissCelebration` s'en charge) : deux plein-écran ne se
+          superposent jamais. */}
+      {celebration ? (
+        <PRCelebrationModal
+          exerciseName={celebration.exerciseName}
+          prs={celebration.prs}
+          unit={DISPLAY_UNIT}
+          locale={locale}
+          onShare={handleShareCelebration}
+          onDismiss={handleDismissCelebration}
+        />
+      ) : null}
 
       <NotificationPrimingModal
         visible={primingVisible}

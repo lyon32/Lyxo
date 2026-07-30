@@ -258,7 +258,8 @@
       "counter_exercises_other": "{{count}} exercices",
       "write_error_title": "Enregistrement impossible",
       "validate_set": "Valider la série",
-      "set_done": "Série validée"
+      "set_done": "Série validée",
+      "finish_workout": "Terminer la séance"
     },
     "input": {
       "weight_label": "Poids",
@@ -274,6 +275,27 @@
       "plus_15": "+15 s",
       "skip": "Passer le repos",
       "notifications_off": "Notifications désactivées — ce repos ne sonnera pas écran verrouillé. Tu peux les activer dans les réglages Android."
+    },
+    "pr": {
+      "badge_weight": "Record de force",
+      "badge_1rm": "Nouveau 1RM estimé",
+      "badge_volume": "Record de volume",
+      "badge_reps": "Record de répétitions",
+      "label_1rm": "1RM estimé",
+      "label_volume": "Volume",
+      "label_reps": "Répétitions",
+      "share_story": "Partager en story",
+      "continue": "Continuer",
+      "private_only": "Visible uniquement dans tes stats perso.",
+      "share_message": "Nouveau record sur {{exerciseName}} : {{value}} — sur LYXO"
+    },
+    "summary": {
+      "default_title": "Séance",
+      "stat_duration": "Durée",
+      "stat_sets": "Séries",
+      "stat_exercises": "Exercices",
+      "finish": "Terminer",
+      "share_message": "{{volume}} soulevés — {{dayLabel}} sur LYXO"
     }
   }
 }

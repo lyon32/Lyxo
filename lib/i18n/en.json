@@ -258,7 +258,8 @@
       "counter_exercises_other": "{{count}} exercises",
       "write_error_title": "Couldn't save",
       "validate_set": "Log set",
-      "set_done": "Logged"
+      "set_done": "Logged",
+      "finish_workout": "Finish workout"
     },
     "input": {
       "weight_label": "Weight",
@@ -274,6 +275,27 @@
       "plus_15": "+15 s",
       "skip": "Skip rest",
       "notifications_off": "Notifications are off — this rest won't ring with the screen locked. You can enable them in Android settings."
+    },
+    "pr": {
+      "badge_weight": "Strength record",
+      "badge_1rm": "New estimated 1RM",
+      "badge_volume": "Volume record",
+      "badge_reps": "Rep record",
+      "label_1rm": "Estimated 1RM",
+      "label_volume": "Volume",
+      "label_reps": "Reps",
+      "share_story": "Share to story",
+      "continue": "Continue",
+      "private_only": "Only visible in your personal stats.",
+      "share_message": "New record on {{exerciseName}}: {{value}} — on LYXO"
+    },
+    "summary": {
+      "default_title": "Workout",
+      "stat_duration": "Duration",
+      "stat_sets": "Sets",
+      "stat_exercises": "Exercises",
+      "finish": "Finish",
+      "share_message": "{{volume}} lifted — {{dayLabel}} on LYXO"
     }
   }
 }

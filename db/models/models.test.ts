@@ -1,3 +1,4 @@
+import { PersonalRecord } from './PersonalRecord';
 import { Workout } from './Workout';
 import { WorkoutExercise } from './WorkoutExercise';
 import { WorkoutSet } from './WorkoutSet';
@@ -19,6 +20,7 @@ describe('models WatermelonDB', () => {
     expect(Workout.table).toBe('workouts');
     expect(WorkoutExercise.table).toBe('workout_exercises');
     expect(WorkoutSet.table).toBe('sets');
+    expect(PersonalRecord.table).toBe('personal_records');
   });
 
   it('exposent les associations attendues', () => {
@@ -26,5 +28,7 @@ describe('models WatermelonDB', () => {
     expect(WorkoutExercise.associations).toHaveProperty('workouts');
     expect(WorkoutExercise.associations).toHaveProperty('sets');
     expect(WorkoutSet.associations).toHaveProperty('workout_exercises');
+    expect(PersonalRecord.associations).toHaveProperty('exercises');
+    expect(PersonalRecord.associations).toHaveProperty('sets');
   });
 });

@@ -3,6 +3,7 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import * as Sentry from '@sentry/react-native';
 
 import { workoutMigrations } from './migrations';
+import { PersonalRecord } from './models/PersonalRecord';
 import { Workout } from './models/Workout';
 import { WorkoutExercise } from './models/WorkoutExercise';
 import { WorkoutSet } from './models/WorkoutSet';
@@ -29,5 +30,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Workout, WorkoutExercise, WorkoutSet],
+  modelClasses: [Workout, WorkoutExercise, WorkoutSet, PersonalRecord],
 });

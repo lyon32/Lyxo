@@ -487,10 +487,87 @@
   choisi pour sa simplicité — pas de RPE saisi dans l'app). 15/15 tests,
   `tsc --noEmit` propre. Pas encore branché sur `active.tsx` : détection
   pure seulement, l'appel à la validation d'une série reste pour 2.10.
-- [ ]  **2.10** Célébration PR (carte partageable, pas de photo).
-- [ ]  **2.11** Écran résumé fin de séance (peak-end).
-- [ ]  **2.12** DoD check : parcours complet testable en mode avion sur
-  Pixel 8 ET device bas de gamme.
+- [x]  **2.10** Célébration PR (carte partageable, pas de photo).
+  `personal_records` créée des deux côtés (DATA_MODEL §2.8) :
+  `supabase/migrations/20260730120000_create_personal_records.sql` (INERTE
+  jusqu'à la Phase 3, même statut que workouts/sets) et `db/schema.ts`
+  v2→v3 + `db/models/PersonalRecord.ts`. `db/pr-recording.ts` fait le pont
+  entre `lib/pr-detection.ts` (2.9) et WatermelonDB : charge l'historique
+  complet de l'exercice (toutes séances du profil), détecte, persiste un
+  row par type battu, retourne le verdict anti-triche pour l'écran.
+  `components/logger/PRCelebrationModal.tsx` (LYXO_UI_PROMPT §7 : badge
+  ember, chiffre Inter Black 64px, delta ember, pas de confetti/photo) —
+  rangé dans `logger/` et pas `components/ui/PRCard.tsx` comme l'arbre LLD
+  §1 le prévoit, ce dossier `ui/` n'existant pas encore dans ce projet.
+  Câblé dans `active.tsx` : le repos est différé jusqu'à la fermeture de la
+  célébration (`pendingRestAfterCelebrationRef`), pour ne jamais superposer
+  deux plein-écran. "Partager en story" utilise la feuille de partage OS
+  (`Share.share`, texte) — LYXO n'a pas encore d'écran Stories in-app
+  (Phase 4+) pour un vrai partage interne. `bodyWeightKg` de l'anti-triche
+  est câblé à `null` en dur : aucune table ne suit le poids de corps
+  (bodyweight tracking = V2), le garde-fou `implausible_weight` reste donc
+  inactif tant que cette donnée n'existe pas. 43/43 tests, `tsc`/`eslint`
+  propres. **Pas testé sur appareil.**
+- [x]  **2.11** Écran résumé fin de séance (peak-end). Version RICHE de
+  LYXO_UI_PROMPT §5bis retenue (décision 2026-07-30, contradiction avec
+  LLD.md §6.5bis "minimal" trouvée et corrigée dans le même doc) : hero
+  volume + delta vs séance précédente, jour nommé, stat row, cartes PR
+  empilées (réutilise `PRCard` de 2.10), "Partager en story" (feuille OS,
+  même limite qu'en 2.10) + "Terminer". Nouveaux fichiers :
+  `app/workout/summary.tsx`, `db/use-workout-summary.ts`,
+  `lib/workout-summary.ts` (+ tests). `finishWorkout()` ajouté à
+  `use-active-workout.ts` et bouton "Terminer la séance" (icône flag) sur
+  `active.tsx` — **cette action n'existait pas du tout avant cette tâche**,
+  aucune séance ne pouvait donc jamais passer `completed_at`.
+  ⚠️ Limites assumées : le delta compare à la séance terminée précédente,
+  pas à "la même séance" (2.7 Templates/Splits abandonnée, plus de notion
+  de séance nommée à comparer) ; l'animation week-strip du mockup n'est PAS
+  câblée (StreakCalendar de Home non branché à de vraies données — chantier
+  séparé). 52/52 tests, `tsc`/`eslint` propres.
+  **Testé sur appareil le 2026-07-30 — bug trouvé et corrigé** : `validateSet`
+  lisait le snapshot poids/reps du set depuis `view` (state React) juste
+  après l'avoir écrit dans la MÊME fonction async ; `view` reste une closure
+  périmée jusqu'au rendu suivant, donc une série validée juste après la
+  saisie (25 reps tapées, "Valider" immédiatement) se voyait créditée d'un
+  PR "Volume 0 kg / Reps 0" au lieu des vraies valeurs. Fix : nouvelle
+  fonction `getSetSnapshot()` qui relit directement WatermelonDB au lieu du
+  state React. Même correctif appliqué par précaution à `finishWorkout()`
+  (calculait aussi `total_volume_kg` depuis `view`, même risque si "Terminer
+  la séance" est tapé juste après la dernière série).
+  **Fix reconfirmé sur appareil le 2026-07-30** : reps tapées puis "Valider"
+  immédiat → Volume et Reps corrects sur la carte.
+- [x]  **2.12** DoD check : parcours complet testable en mode avion.
+  Testé le 2026-07-30 sur Redmi 2201117TG (mid-range) — **ni Pixel 8 ni
+  device bas de gamme réel disponibles**, adapté au matériel dispo faute de
+  mieux ; à revalider sur les deux cibles nommées quand le matériel sera
+  réuni. Quatre bugs bloquants trouvés et corrigés PENDANT ce DoD, tous en
+  dehors du Logger lui-même :
+  1. `lib/exercises-store.ts` — référentiel d'exercices jamais mis en cache
+     local (Zustand mémoire pure) : app tuée + mode avion = picker vide,
+     impossible d'ajouter un exercice hors ligne. Fix : persistance
+     AsyncStorage, cache rendu immédiatement, réseau en rafraîchissement
+     silencieux seulement (jamais n'écrase un cache valide sur échec).
+  2. `db/use-active-workout.ts` (`currentProfileId`) — hypothèse fausse
+     documentée dans le code lui-même ("getSession() lit le cache local, pas
+     d'aller-retour réseau") : vrai seulement si le token n'est pas expiré.
+     Expiré, supabase-js tente un refresh RÉSEAU avant de répondre et rend
+     une session VIDE si ce refresh échoue → "Aucune session : impossible
+     de créer la séance" en plein vol. Fix : identité mise en cache dans
+     SecureStore par `lib/auth-store.ts` à chaque changement de session,
+     lue directement — `getSession()` réservé aux vrais appels API
+     authentifiés, jamais à une écriture purement locale.
+  3. `lib/supabase-auto-refresh.ts` (nouveau) — `autoRefreshToken` retentait
+     en boucle sur un DNS mort en mode avion (dizaines d'exceptions
+     identiques observées en quelques minutes). Fix : coupé via AppState +
+     NetInfo (`@react-native-community/netinfo`, nouvelle dépendance
+     native — rebuild `expo run:android` nécessaire), les deux signaux
+     requis (arrière-plan ET hors ligne sont deux causes distinctes).
+  4. `app/(tabs)/index.tsx` — `supabase.auth.getUser()` sur Home (pour
+     l'initiale d'avatar) revalide TOUJOURS en réseau, contrairement à
+     `getSession()`, et n'était jamais rattrapé (pas de `.catch`). Fix :
+     basculé sur `getSession()` — une lettre d'avatar ne justifie aucune
+     revalidation serveur.
+  `tsc`/`eslint`/52 tests restent propres après les 4 fixes.
 
 ## PHASE 3 — SYNC (Bloc C — le socle, jamais compressé)
 

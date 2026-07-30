@@ -1,6 +1,11 @@
 import { createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
 
-import { setsTableSpec, workoutExercisesTableSpec, workoutsTableSpec } from './schema';
+import {
+  personalRecordsTableSpec,
+  setsTableSpec,
+  workoutExercisesTableSpec,
+  workoutsTableSpec,
+} from './schema';
 
 // Migrations du schéma LOCAL (LLD.md §1, `db/migrations.ts`).
 //
@@ -25,6 +30,11 @@ export const workoutMigrations = schemaMigrations({
         createTable(workoutExercisesTableSpec),
         createTable(setsTableSpec),
       ],
+    },
+    {
+      // v2 → v3 : personal_records (ROADMAP 2.10, DATA_MODEL §2.8).
+      toVersion: 3,
+      steps: [createTable(personalRecordsTableSpec)],
     },
   ],
 });

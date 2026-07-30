@@ -30,8 +30,15 @@ export default function HomeScreen() {
     // Avatars = INITIALES (jamais de photo/icône générique) — LYXO_UI_PROMPT.md
     // Design Style. Pas encore de store profil client — lecture directe du
     // user_metadata (posé au signup, lib/auth-store.ts) avec fallback email.
-    supabase.auth.getUser().then(({ data }) => {
-      const source = data.user?.user_metadata?.username ?? data.user?.email ?? '?';
+    //
+    // ⚠️ `getSession()`, PAS `getUser()` : `getUser()` revalide TOUJOURS en
+    // réseau auprès du serveur Auth (contrairement à `getSession()`, qui lit
+    // le cache local) — ça échouait sans jamais être rattrapé en mode avion
+    // (DoD ROADMAP 2.12, 2026-07-30), pour une simple lettre d'avatar qui ne
+    // justifie aucune revalidation serveur.
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user;
+      const source = user?.user_metadata?.username ?? user?.email ?? '?';
       setAvatarInitial(source.charAt(0).toUpperCase());
     });
   }, []);
