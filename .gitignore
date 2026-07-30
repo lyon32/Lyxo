@@ -54,5 +54,9 @@ backend/scripts/output/
 
 # skills auto-installés par le harness (non liés au projet)
 .claude/skills/
+# idem, installés par `npx skills` / `npx openskills` en mode projet
+.agents/
+.agent/
+skills-lock.json
 
 .env.local

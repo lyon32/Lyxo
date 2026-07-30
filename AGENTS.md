@@ -2,16 +2,41 @@
 
 Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
 
-# Skills — invoke the matching one BEFORE starting
+# Skills — invoking the matching one is MANDATORY, and it happens FIRST
 
-Do not work from memory when a skill covers the task. Load the relevant
-skill via the Skill tool **before** writing code or design, not after —
-a skill read afterwards changes nothing about what was already produced.
-If several apply, load them all.
+Before writing code, design, or a doc section, look up the task in the
+table below and **invoke the listed skill with the Skill tool**. This is
+not a suggestion to weigh: if a row matches, the skill gets loaded before
+anything is produced. A skill read afterwards changes nothing about what
+is already written. If several rows match, load them all.
+
+Announce it in one short line (`> skill: expo-router`) so the choice is
+visible and reviewable — never silently.
+
+Only two ways out, and both must be stated out loud:
+- **No row matches.** Say so in one sentence, then proceed. Do not go
+  browsing the ~294 installed skills for something adjacent — most target
+  Python, Go, Rust, Kubernetes, web3, MLOps or finance and have nothing to
+  do with an Expo app. **This table is the allowlist for LYXO**, not a
+  starting point.
+- **A row matches but the skill is wrong here.** Name the conflict and why
+  (see "Project docs win" at the end), then proceed without it.
 
 | Task at hand | Skill to invoke |
 |---|---|
 | Routes, navigation, `app/` layout, groups, modals, headers | `expo-router` |
+| Overall RN app architecture, offline sync, native integration | `react-native-architecture` |
+| RN styling, navigation patterns, Reanimated animations | `react-native-design` |
+| Zustand stores, global state, server-state caching | `react-state-management` |
+| Animations, transitions, micro-interactions, "make it feel alive" | `improve-animations`, `apple-design` |
+| Naming a motion effect you can describe but not name | `animation-vocabulary` |
+| Loading states, feedback, interaction polish | `interaction-design` |
+| Auth, JWT, session handling, token refresh | `auth-implementation-patterns` |
+| Postgres schema, RLS, migration SQL, slow query | `postgresql`, `sql-optimization-patterns` |
+| Complex TS types, generics, utility types | `typescript-advanced-types` |
+| Unit tests (Jest / Vitest), mocks, fixtures | `javascript-testing-patterns` |
+| Tracking down a bug, profiling, root cause | `debugging-strategies` |
+| Design tokens, theming, dark mode | `design-system-patterns`, `cwb-theming` |
 | Any network request / API call / caching / offline fetch | `expo-data-fetching` |
 | Dev build, dev client, running the app on a device | `expo-dev-client` |
 | NativeWind / Tailwind config trouble | `expo-tailwind-setup` |
@@ -32,9 +57,17 @@ If several apply, load them all.
 
 **Never** apply the web-only skills to the app itself: `accesslint-*`
 (drives a Chrome DevTools session against a live DOM), `react-view-
-transitions` (browser API), `web-design-guidelines`. React Native has no
-DOM — these have nothing to bind to and their advice will be wrong.
-They apply to `lyxo-web/` only.
+transitions` (browser API), `web-design-guidelines`, `responsive-design`
+and `web-component-design` (CSS/DOM). React Native has no DOM — these have
+nothing to bind to and their advice will be wrong. They apply to
+`lyxo-web/` only.
+
+**Never** apply the native-mobile design skills either: `mobile-ios-design`
+(SwiftUI / Apple HIG) and `mobile-android-design` (Jetpack Compose /
+Material 3). LYXO is a single Expo codebase, Android-first — neither
+SwiftUI nor Compose exists in it. `apple-design` is the exception and IS
+allowed: it teaches motion and interaction principles translated away from
+Apple's own frameworks, not SwiftUI APIs.
 
 ## Android skills (`.claude/skills/`, project level)
 
