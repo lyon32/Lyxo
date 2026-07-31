@@ -1,10 +1,35 @@
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
+import * as Sentry from '@sentry/react-native';
 import { create } from 'zustand';
 
+import { apiFetch } from './api-client';
+import { getOrCreateDeviceId } from './device-id';
 import { pushOnboardingChoicesIfAny } from './push-onboarding-choices';
 import { supabase } from './supabase';
+
+// ROADMAP 3.6 : enregistre CET appareil au serveur à chaque connexion —
+// c'est cet appel qui désactive un éventuel autre appareil si le profil
+// est gratuit (`POST /v1/devices/register`). Échec avalé + Sentry plutôt
+// que bloquant : rater cet appel ne doit jamais empêcher un login réel de
+// se terminer (dégradation silencieuse, même logique que la notification
+// de fin de repos §1.2 — la fonctionnalité principale ne dépend jamais
+// d'une fonctionnalité secondaire qui échoue).
+async function registerDeviceOnLogin(): Promise<void> {
+  try {
+    const deviceId = await getOrCreateDeviceId();
+    const response = await apiFetch('/v1/devices/register', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId }),
+    });
+    if (!response.ok) {
+      throw new Error(`device registration failed: ${response.status}`);
+    }
+  } catch (error) {
+    Sentry.captureException(error, { extra: { context: 'device_registration' } });
+  }
+}
 
 // Identité localement mise en cache (SecureStore, comme le JWT lui-même) —
 // distincte de `getSession()`, qui reste réservé aux appels API réellement
@@ -73,6 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         // désormais la soumission de l'écran 2bis (lib/compute-billing-
         // region.ts, ROADMAP 1.8).
         pushOnboardingChoicesIfAny();
+        void registerDeviceOnLogin();
       }
     });
   },

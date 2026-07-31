@@ -14,6 +14,7 @@ import pinoHttp from 'pino-http';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/error-handler';
 import { AppError } from './lib/errors';
+import { devicesRouter } from './routes/devices';
 import { healthRouter } from './routes/health';
 import { profilesRouter } from './routes/profiles';
 import { syncRouter } from './routes/sync';
@@ -33,6 +34,7 @@ app.use(pinoHttp({ logger }));
 app.use(healthRouter);
 app.use(profilesRouter);
 app.use(syncRouter);
+app.use(devicesRouter);
 
 app.use((req, _res, next) => {
   next(new AppError('RESOURCE_NOT_FOUND', `No route for ${req.method} ${req.path}`));

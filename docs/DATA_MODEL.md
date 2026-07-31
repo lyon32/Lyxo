@@ -151,18 +151,26 @@ backend/admin uniquement, jamais par le client).
 create table devices (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null references profiles(id),
+  device_id text not null,            -- AJOUTÉ 2026-07-31 (ROADMAP 3.6) : identité
+                                       -- stable de l'appareil, générée client
+                                       -- (SecureStore), pas un second uuid serveur
   push_token text,
   last_active_at timestamptz not null default now(),
   is_active boolean not null default true,  -- 1 seul actif si gratuit (Q11b)
   created_at timestamptz not null default now()
 );
 create index idx_devices_profile_active on devices(profile_id) where is_active = true;
+create unique index uq_device_profile_device on devices(profile_id, device_id);  -- identité, pas activité — voir note ci-dessous
 -- ⚠️ CORRECTION (audit doc) : PAS d'index UNIQUE partiel ici — un index
 -- unique ne peut pas être "levé dynamiquement" et bloquerait physiquement
 -- le multi-device des abonnés Lyxo+ (PRICING §5). La règle "1 appareil
 -- actif si gratuit" est appliquée par la LOGIQUE APPLICATIVE au login
 -- (invalidation de l'ancien device si statut premium dérivé = false),
 -- couverte par un test d'intégration dédié (ROADMAP 3.6).
+-- `uq_device_profile_device` ci-dessus n'est PAS ce type d'index : il porte
+-- sur l'IDENTITÉ (profile_id, device_id), jamais sur `is_active` — aucun
+-- conflit avec la correction précédente, aucune restriction sur le nombre
+-- d'appareils actifs simultanés qu'il autorise.
 ```
 
 ### 2.3 `exercises` [RÉFÉRENTIEL, lecture seule côté client — PULL-ABLE]

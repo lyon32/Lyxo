@@ -682,8 +682,40 @@
   moteur contre un backend qui rejetterait tout. Le câblage au boot est une
   décision séparée, à prendre une fois les migrations appliquées.
   `tsc`/`eslint` propres (app + backend), 57/57 tests app.
-- [ ]  **3.6** Contrainte 1 appareil actif (gratuit) : migration devices +
-  logique d'invalidation au nouveau login.
+- [x]  **3.6** Contrainte 1 appareil actif (gratuit) : migration devices +
+  logique d'invalidation au nouveau login. Périmètre plus large que la
+  ligne de roadmap ne le laissait supposer — `devices` n'avait même pas de
+  colonne pour identifier un appareil, aucun endpoint, rien côté client.
+  **Migration** `20260731130000_add_device_id_to_devices.sql` : ajoute
+  `device_id`, `unique(profile_id, device_id)` — une contrainte
+  D'IDENTITÉ, pas d'activité (DATA_MODEL §2.2 avait déjà explicitement
+  écarté un `UNIQUE(is_active)` partiel, qui bloquerait le multi-device
+  Lyxo+ ; celle-ci est différente et ne restreint rien côté activité).
+  **Backend** : `POST /v1/devices/register` (`backend/src/routes/
+  devices.ts`) — statut premium dérivé serveur via la fonction SQL
+  existante `has_active_premium()` (jamais depuis le client), désactive les
+  AUTRES appareils du profil seulement si gratuit, upsert de celui-ci.
+  `require-active-device.ts` (nouveau middleware, chaîné après
+  `requireAuth`) vérifie `X-Device-Id` — **fail-closed si l'en-tête est
+  absent**, décision explicite prise pendant qu'aucun coach beta n'est
+  installé. Appliqué **UNIQUEMENT à `GET /v1/sync/pull`**, jamais à
+  `/v1/sync/push` : un appareil qu'on vient de désactiver garde le droit de
+  pousser ses séances déjà créées (les bloquer ne protège rien et
+  violerait le critère de succès n°1), il perd seulement le droit de
+  récupérer plus de données. Désactivation loggée (`logger.info`) pour
+  expliquer un "déconnecté tout seul" en beta.
+  **Client** : `lib/device-id.ts` (UUID généré une fois, SecureStore,
+  stable à travers un sign-out) ; `lib/api-client.ts` attache `X-Device-Id`
+  à CHAQUE appel ; `lib/auth-store.ts` enregistre l'appareil à chaque
+  `SIGNED_IN` (échec avalé + Sentry, ne bloque jamais un login réel) ;
+  `lib/sync/engine.ts` détecte la réponse 403 `device_inactive` et
+  déclenche `handleDeviceInactive()`.
+  ⚠️ **Invariant vérifié explicitement** : le sign-out forcé n'efface QUE
+  la session Supabase (SecureStore) — jamais WatermelonDB. Un appareil
+  désactivé avec des séances non synchronisées ne perd rien ; il les
+  retrouve et les pousse à la prochaine connexion (même `device_id`,
+  stable en SecureStore à travers le sign-out).
+  `tsc`/`eslint` propres (app + backend), 57/57 tests app.
 - [ ]  **3.7** Torture tests manuels : mode avion pendant séance → sync ;
   kill app mid-séance ; login sur 2e appareil. Zéro perte constatée.
 - [ ]  **3.8** Indicateur SYNCED + micro-texte "Enregistré sur ton

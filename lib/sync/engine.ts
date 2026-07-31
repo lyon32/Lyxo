@@ -7,6 +7,7 @@ import type { Model } from '@nozbe/watermelondb';
 
 import { database } from '../../db/index';
 import { apiFetch } from '../api-client';
+import { supabase } from '../supabase';
 import { resolveConflict, type SyncableRecord } from './conflict-resolution';
 import { buildRawFromPulledRow, fetchChangedRows, SYNC_TABLES, type PulledRow, type SyncTableName } from './tables';
 
@@ -59,7 +60,12 @@ async function withRetry<T>(context: string, fn: () => Promise<T>): Promise<T | 
       const isLastAttempt = attempt === RETRY_DELAYS_MS.length;
       const retryable = error instanceof RetryableSyncError;
       if (!retryable || isLastAttempt) {
-        Sentry.captureException(error, { extra: { context, attempt, retryable } });
+        // `DeviceInactiveError` est un flux métier attendu (un autre
+        // appareil a pris la place, ROADMAP 3.6), pas un bug — le signaler
+        // à Sentry ne ferait que polluer le suivi d'erreurs réelles.
+        if (!(error instanceof DeviceInactiveError)) {
+          Sentry.captureException(error, { extra: { context, attempt, retryable } });
+        }
         return null;
       }
       await sleep(RETRY_DELAYS_MS[attempt]);
@@ -67,6 +73,21 @@ async function withRetry<T>(context: string, fn: () => Promise<T>): Promise<T | 
   }
   return null;
 }
+
+// ROADMAP 3.6 : quand un autre appareil devient l'appareil actif (gratuit),
+// `GET /v1/sync/pull` répond 403 `{reason: 'device_inactive'}`. Le
+// sign-out efface UNIQUEMENT la session Supabase (SecureStore) — jamais
+// WatermelonDB. Un coach qui a des séances loggées non encore poussées sur
+// cet appareil ne doit RIEN perdre : `stopAutoSync()` arrête juste les
+// déclencheurs, la base locale reste intacte et repart en sync à la
+// prochaine connexion sur ce même appareil (`device_id` stable en
+// SecureStore, voir `lib/device-id.ts`).
+async function handleDeviceInactive(): Promise<void> {
+  stopAutoSync();
+  await supabase.auth.signOut();
+}
+
+export class DeviceInactiveError extends Error {}
 
 async function syncFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -81,9 +102,14 @@ async function syncFetchJson<T>(path: string, init?: RequestInit): Promise<T> {
     throw new RetryableSyncError(`sync request failed with status ${response.status}`);
   }
   if (!response.ok) {
-    // 4xx : pas la peine de retenter, ça ne changera pas de résultat.
-    const body = await response.text().catch(() => '');
-    throw new Error(`sync request rejected with status ${response.status}: ${body}`);
+    const body = await response.json().catch(() => null);
+    if (response.status === 403 && body?.error?.details?.reason === 'device_inactive') {
+      await handleDeviceInactive();
+      throw new DeviceInactiveError('device deactivated by another login');
+    }
+    // 4xx (hors device_inactive) : pas la peine de retenter, ça ne
+    // changera pas de résultat.
+    throw new Error(`sync request rejected with status ${response.status}: ${JSON.stringify(body)}`);
   }
   return (await response.json()) as T;
 }

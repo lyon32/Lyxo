@@ -3,8 +3,10 @@ import { z } from 'zod';
 
 import { asyncHandler } from '../lib/async-handler';
 import { AppError } from '../lib/errors';
+import { rawTable } from '../lib/raw-table';
 import { isSyncTableName, type SyncTableName } from '../lib/sync-tables';
 import { getSupabaseAdmin } from '../lib/supabase-admin';
+import { requireActiveDevice } from '../middleware/require-active-device';
 import { requireAuth } from '../middleware/require-auth';
 
 export const syncRouter = Router();
@@ -83,18 +85,9 @@ async function loadOwnershipScope(
   return { workoutIds, workoutExerciseIds };
 }
 
-// Échappatoire de typage CIBLÉE (même compromis que `ws as any` dans
-// `lib/supabase-admin.ts`) : `local_id` sur workout_exercises/sets et la
-// table `personal_records` entière n'existent pas encore dans les types
-// générés (`backend/src/types/supabase.ts`) — leurs migrations ne sont pas
-// appliquées (2026-07-31, ce fichier même le documente en 3.2/3.3).
-// Regénérer les types résoudra ceci une fois les migrations appliquées ;
-// `db/schema.test.ts` (côté app) est le garde-fou qui rappellera de le
-// faire avant que la dérive ne devienne invisible.
-function rawTable(admin: ReturnType<typeof getSupabaseAdmin>, name: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (admin as any).from(name);
-}
+// `rawTable` déplacé dans `lib/raw-table.ts` (2026-07-31, ROADMAP 3.6) :
+// `require-active-device.ts` en a besoin aussi (`devices.device_id`, même
+// staleness des types générés) — factorisé plutôt que dupliqué une 3e fois.
 
 // Remplace, sur des lignes déjà récupérées, une colonne de clé étrangère
 // (id SERVEUR du parent) par le `local_id` de ce même parent — le client
@@ -132,9 +125,14 @@ async function remapParentLocalIds(
 }
 
 // GET /v1/sync/pull — API_SPEC.md §4.1, ROADMAP 3.2.
+// `requireActiveDevice` APRÈS `requireAuth`, ICI SEULEMENT — voir le
+// commentaire de tête de `require-active-device.ts` pour la raison exacte
+// (push exempté volontairement, un appareil désactivé peut vider ce qu'il
+// a en attente mais ne récupère plus rien de nouveau).
 syncRouter.get(
   '/v1/sync/pull',
   requireAuth,
+  requireActiveDevice,
   asyncHandler(async (req, res, next) => {
     const userId = req.auth!.userId;
 
