@@ -1,5 +1,18 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"UserPromptSubmit\\\",\\\"additionalContext\\\":\\\"RAPPEL AGENTS.md — avant d’écrire du code, du design ou une section de doc, charge la skill correspondante de la table d’AGENTS.md avec l’outil Skill AVANT de produire, et annonce-la en une ligne (> skill: nom). Si aucune ligne ne correspond, dis-le en une phrase et avance : ne fouille pas les skills installées.\\\"}}\"",
+            "suppressOutput": true
+          }
+        ]
+      }
+    ]
   }
 }
