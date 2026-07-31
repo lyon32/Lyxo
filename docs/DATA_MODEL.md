@@ -248,6 +248,9 @@ tiers, quel que soit le statut de follow (cohérent avec l'exclusion
 create table workout_exercises (
   id uuid primary key default gen_random_uuid(),
   workout_id uuid not null references workouts(id),
+  local_id text not null,             -- id généré client (offline) — AJOUTÉ
+                                       -- 2026-07-31, gap ROADMAP 3.3 : oublié
+                                       -- ici alors que workouts l'avait déjà
   exercise_id uuid references exercises(id),
   custom_exercise_id uuid references custom_exercises(id),
   order_index int not null,
@@ -257,6 +260,7 @@ create table workout_exercises (
   check (exercise_id is not null or custom_exercise_id is not null)
 );
 create index idx_we_workout on workout_exercises(workout_id);
+create unique index uq_workout_exercise_local on workout_exercises(workout_id, local_id);  -- idempotence sync, scopé au parent (pas de profile_id direct ici)
 ```
 RLS (audit doc #23, defense-in-depth — voir note §2 en tête) : hérite de
 la visibilité du `workout` parent (jointure sur `workout_id`) — lecture
@@ -268,6 +272,8 @@ propriétaire (`workouts.profile_id = auth.uid()`).
 create table sets (
   id uuid primary key default gen_random_uuid(),
   workout_exercise_id uuid not null references workout_exercises(id),
+  local_id text not null,             -- id généré client (offline) — AJOUTÉ
+                                       -- 2026-07-31, même gap ROADMAP 3.3
   set_number int not null,
   weight_kg numeric not null,         -- STOCKAGE CANONIQUE — §19.15, jamais lbs
   reps int not null,
@@ -278,6 +284,7 @@ create table sets (
   updated_at timestamptz not null default now()
 );
 create index idx_sets_we on sets(workout_exercise_id);
+create unique index uq_set_local on sets(workout_exercise_id, local_id);  -- idempotence sync, scopé au parent
 ```
 RLS (audit doc #23, defense-in-depth) : hérite de la visibilité du
 `workout` ancêtre (jointure `workout_exercise_id` → `workout_id`) —
@@ -287,6 +294,8 @@ mêmes règles que `workout_exercises` ci-dessus.
 ```sql
 create table personal_records (
   id uuid primary key default gen_random_uuid(),
+  local_id text not null,             -- id généré client (offline) — AJOUTÉ
+                                       -- 2026-07-31, même gap ROADMAP 3.3
   profile_id uuid not null references profiles(id),
   exercise_id uuid not null references exercises(id),
   set_id uuid references sets(id),
@@ -302,6 +311,7 @@ create table personal_records (
   updated_at timestamptz not null default now()
 );
 create index idx_pr_profile_exercise on personal_records(profile_id, exercise_id);
+create unique index uq_personal_record_local on personal_records(profile_id, local_id);  -- idempotence sync
 -- Règle applicative (§18.1) : is_social_eligible = false si
 --   weight_kg > 4 × body_weight OU delta > +15% vs précédent PR
 --   OU < 3 séances loggées sur l'exercice

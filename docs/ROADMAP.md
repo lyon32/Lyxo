@@ -571,14 +571,70 @@
 
 ## PHASE 3 — SYNC (Bloc C — le socle, jamais compressé)
 
-- [ ]  **3.1** Migration : ajouter `deleted_at` sur TOUTES les tables SYNC
-  créées jusqu'ici (si pas déjà fait dès la création — vérifier).
-- [ ]  **3.2** Backend `/v1/sync/pull` : pagination (500/has_more/cursor),
+- [x]  **3.1** Migration : ajouter `deleted_at` sur TOUTES les tables SYNC
+  créées jusqu'ici (si pas déjà fait dès la création — vérifier). **Vérifié
+  le 2026-07-31, déjà conforme, aucune migration nécessaire** : les six
+  tables [SYNC] existantes (`profiles`, `custom_exercises`, `workouts`,
+  `workout_exercises`, `sets`, `personal_records`) ont toutes `deleted_at`
+  depuis leur création. `devices` ([SERVEUR]) et `exercises`
+  ([RÉFÉRENTIEL]) n'en ont pas — normal, elles ne portent pas ce tag.
+- [x]  **3.2** Backend `/v1/sync/pull` : pagination (500/has_more/cursor),
   calcul `is_premium` dérivé (retourne false/null en Phase 1-3, la
-  table subscriptions n'existe pas encore).
-- [ ]  **3.3** Backend `/v1/sync/push` : idempotence par local_id,
-  application soft-delete uniquement (jamais de DELETE physique) —
-  tests d'intégration dédiés.
+  table subscriptions n'existe pas encore). `backend/src/routes/sync.ts` +
+  `backend/src/lib/sync-tables.ts`. Curseur = **keyset composite
+  `(updated_at, id)` par table**, pas un offset ni un simple timestamp :
+  vérifié en lecture directe contre la vraie base `lyxo`
+  (`gyslysnysrswzefmvpxw`) que les 200 lignes d'`exercises` partagent
+  TOUTES le même `updated_at` (insert par lot) — un curseur timestamp seul
+  bouclerait ou sauterait des lignes dessus ; le tiebreak par `id` pagine
+  correctement (page 1/page 2 vérifiées sans chevauchement ni trou).
+  Périmètre volontairement limité à `workouts`/`workout_exercises`/`sets`/
+  `personal_records`/`exercises` — PAS `profiles`/`custom_exercises`
+  (`[SYNC]` dans DATA_MODEL §2 mais sans modèle WatermelonDB côté client
+  aujourd'hui, chemin jamais exercé donc jamais testable honnêtement).
+  Propriété filtrée EN CODE (pas RLS, service_role bypass) : `workouts` par
+  `profile_id`, `workout_exercises`/`sets` par chaîne d'ids résolue en
+  amont (même style "une requête par palier" que `db/pr-recording.ts`),
+  `exercises` sans filtre (référentiel public). `tsc`/`eslint` backend
+  propres. **Pas de test d'intégration commis** — la stratégie
+  TESTING.md §1.2 les prévoit contre une vraie base de test, regroupés
+  avec ceux de 3.3 (push) plutôt que dupliqués séparément.
+- [x]  **3.3** Backend `/v1/sync/push` : idempotence par local_id,
+  application soft-delete uniquement (jamais de DELETE physique).
+  **Gap trouvé et corrigé avant le code** : `local_id` n'existait QUE sur
+  `workouts` (DATA_MODEL §2.5) — absent de `workout_exercises`/`sets`
+  (§2.6/§2.7) et de `personal_records` (§2.8, 2.10), alors que LLD.md
+  ("AJOUT audit technique 2026-07-25") exige l'idempotence PAR ENTITÉ et
+  que CLAUDE_LYXO_V3.md §16.3 qualifiait déjà cette absence de "finding
+  Critical". Corrigé aux TROIS endroits en même temps : DATA_MODEL.md
+  (spec), migrations SQL (`20260731120000_add_local_id_workout_children.sql`
+  pour workout_exercises/sets ; migration 2.10 amendée directement pour
+  personal_records — jamais appliquée, donc pas de dette de "seconde
+  migration sur une table jamais vue"), et `db/schema.ts` (table de
+  correspondance, aucun changement WatermelonDB : `.id` du record EST le
+  `local_id`, même principe que `workouts`, confirmé avant d'écrire quoi
+  que ce soit). Unique scopé au PARENT direct partout
+  (`(workout_id, local_id)`, `(workout_exercise_id, local_id)`,
+  `(profile_id, local_id)`) — jamais un `UNIQUE(local_id)` global, faille
+  DoS documentée par CLAUDE_LYXO_V3 §16.3.
+  `backend/src/routes/sync.ts` (route ajoutée au fichier de 3.2) : résout
+  les références LOCALES des enfants (`workout_id`/`workout_exercise_id`/
+  `set_id` envoyés par le client sont des `local_id` de parent, pas des uuid
+  serveur) via un cache par requête qui absorbe aussi les parents créés
+  dans le MÊME push — une séance neuve complète (workout + exercices +
+  séries) se pousse en un seul appel. `profile_id` toujours forcé côté
+  serveur, jamais celui du client.
+  ⚠️ **Simplification assumée** : pas de transaction Postgres unique pour
+  tout le batch (LLD point 2, idéal) — écrire ceci proprement demande une
+  fonction RPC dédiée, hors périmètre ici. Chaque écriture reste
+  individuellement idempotente via son index unique scopé, donc un rejeu
+  après coupure ne duplique jamais rien ; seul le "tout ou rien" strict
+  n'est pas garanti (un item dont le parent est introuvable est sauté,
+  compté dans un champ `skipped` additif à la réponse documentée par
+  API_SPEC, pas une erreur bloquante). À revisiter en RPC si les torture
+  tests de 3.7 révèlent un vrai problème. `tsc`/`eslint` backend propres.
+  **Pas de test d'intégration commis** (même raison qu'en 3.2 — TESTING.md
+  §1.2 les prévoit contre une vraie base de test).
 - [ ]  **3.4** `lib/sync/conflict-resolution.ts` (LWW) + tests unitaires
   (égalité de timestamp, suppression prioritaire).
 - [ ]  **3.5** `lib/sync/engine.ts` : orchestration côté app (foreground,
@@ -592,8 +648,11 @@
 
 ## PHASE 4 — PROGRÈS & PROFIL (Bloc D)
 
-- [ ]  **4.1** Migration : `personal_records` complet (avec
-  is_social_eligible, ineligibility_reason).
+- [x]  **4.1** Migration : `personal_records` complet (avec
+  is_social_eligible, ineligibility_reason). **Déjà livrée en 2.10**
+  (`supabase/migrations/20260730120000_create_personal_records.sql`) — elle
+  contient déjà les deux colonnes. Reste INERTE jusqu'à ce que 3.2/3.3
+  (sync) existent, comme les autres tables [SYNC] du Bloc C.
 - [ ]  **4.2** Écran Progrès : graphes 1RM/volume (tout historique),
   heatmap, segmented control.
 - [ ]  **4.3** Masquage consultation > 90 jours (gratuit) + notif J75.

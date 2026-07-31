@@ -35,6 +35,13 @@ import type { TableSchemaSpec } from '@nozbe/watermelondb/Schema';
 //
 // ┌─ workout_exercises (§2.6) ──────┬──────────────────┬───────────────────┐
 // │ workout_id uuid not null        │ workout_id str   │ indexé            │
+// │ local_id text not null          │ `id` du record   │ AJOUTÉ 2026-07-31 │
+// │                                 │                  │ (gap ROADMAP 3.3) │
+// │                                 │                  │ — même principe   │
+// │                                 │                  │ que workouts,     │
+// │                                 │                  │ unique scopé      │
+// │                                 │                  │ (workout_id,      │
+// │                                 │                  │ local_id)         │
 // │ exercise_id uuid                │ exercise_id str? │ référentiel       │
 // │ custom_exercise_id uuid         │ custom_ex_id str?│ exercice perso    │
 // │ order_index int not null        │ order_index num  │                   │
@@ -46,6 +53,11 @@ import type { TableSchemaSpec } from '@nozbe/watermelondb/Schema';
 //
 // ┌─ sets (§2.7) ───────────────────┬──────────────────┬───────────────────┐
 // │ workout_exercise_id not null    │ workout_ex_id str│ indexé            │
+// │ local_id text not null          │ `id` du record   │ AJOUTÉ 2026-07-31 │
+// │                                 │                  │ (gap ROADMAP 3.3) │
+// │                                 │                  │ — unique scopé    │
+// │                                 │                  │ (workout_ex_id,   │
+// │                                 │                  │ local_id)         │
 // │ set_number int not null         │ set_number num   │ 1-based           │
 // │ weight_kg numeric(8,2) not null │ weight_kg num    │ CANONIQUE §19.15  │
 // │ reps int not null               │ reps num         │                   │
@@ -56,6 +68,8 @@ import type { TableSchemaSpec } from '@nozbe/watermelondb/Schema';
 // └─────────────────────────────────┴──────────────────┴───────────────────┘
 //
 // ┌─ personal_records (§2.8) ───────┬──────────────────┬───────────────────┐
+// │ local_id text not null          │ `id` du record   │ AJOUTÉ 2026-07-31 │
+// │                                 │                  │ (gap ROADMAP 3.3) │
 // │ profile_id uuid not null        │ profile_id str   │ indexé            │
 // │ exercise_id uuid not null       │ exercise_id str  │ indexé            │
 // │ set_id uuid (nullable)          │ set_id str?      │                   │

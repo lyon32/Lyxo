@@ -10,6 +10,11 @@
 
 create table personal_records (
   id uuid primary key default gen_random_uuid(),
+  -- AJOUTÉ 2026-07-31 (préparation ROADMAP 3.3, jamais appliqué avant cette
+  -- correction) : même gap que workout_exercises/sets — sans `local_id`,
+  -- un push rejoué après une réponse perdue duplique le PR. Pas de second
+  -- UUID généré : c'est l'`id` WatermelonDB du record (voir `db/schema.ts`).
+  local_id text not null,
   profile_id uuid not null references profiles(id),
   exercise_id uuid not null references exercises(id),
   set_id uuid references sets(id),
@@ -27,6 +32,10 @@ create table personal_records (
   updated_at timestamptz not null default now()
 );
 create index idx_pr_profile_exercise on personal_records(profile_id, exercise_id);
+-- Scopé au profil (comme workouts.uq_workout_local), jamais un UNIQUE
+-- global sur local_id — CLAUDE_LYXO_V3.md §16.3 documente le global comme
+-- une faille DoS (un profil insère le local_id d'un autre et bloque sa sync).
+create unique index uq_personal_record_local on personal_records(profile_id, local_id);
 -- Règle applicative (§18.1), pas exprimable en CHECK (dépend d'un historique
 -- et d'une donnée externe, le poids de corps) :
 --   is_social_eligible = false si
