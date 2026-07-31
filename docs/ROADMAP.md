@@ -599,6 +599,12 @@
   propres. **Pas de test d'intégration commis** — la stratégie
   TESTING.md §1.2 les prévoit contre une vraie base de test, regroupés
   avec ceux de 3.3 (push) plutôt que dupliqués séparément.
+  ⚠️ **Amendé le 2026-07-31 (en préparant 3.5)** : les colonnes de clé
+  étrangère renvoyées pour `workout_exercises`/`sets`/`personal_records`
+  (`workout_id`, `workout_exercise_id`, `set_id`) étaient des uuid SERVEUR
+  — le client n'en apprend/persiste jamais et n'avait donc aucun moyen de
+  les relier à sa ligne locale. `remapParentLocalIds()` les remplace
+  maintenant par le `local_id` du parent avant de répondre.
 - [x]  **3.3** Backend `/v1/sync/push` : idempotence par local_id,
   application soft-delete uniquement (jamais de DELETE physique).
   **Gap trouvé et corrigé avant le code** : `local_id` n'existait QUE sur
@@ -646,8 +652,36 @@
   règle SERVEUR (`services/sync.service.ts`), pas cette fonction client
   pure ; à construire quand le backend de sync appliquera réellement ce
   résultat. 57/57 tests, `tsc`/`eslint` propres.
-- [ ]  **3.5** `lib/sync/engine.ts` : orchestration côté app (foreground,
-  retour réseau, retry backoff).
+- [x]  **3.5** `lib/sync/engine.ts` : orchestration côté app (foreground,
+  retour réseau, retry backoff). `lib/sync/tables.ts` (mapping par table
+  WatermelonDB ↔ JSON, pas de générique — chaque table a des champs
+  propres) + `lib/sync/engine.ts` (push/pull/retry/déclencheurs).
+  **Deux décisions de design validées avant le code** : (1) checkpoint de
+  pull UNIQUE pour tout le cycle, pas par table — API_SPEC §4.1 définit une
+  pagination pour TOUTES les tables demandées ensemble (`has_more`/
+  `next_cursor` singuliers), avancer un checkpoint par table aurait pu
+  laisser des `sets` avancés sans leurs `workouts` parents (séance qui
+  "disparaît" pour l'utilisateur) ; (2) le client pousse TOUJOURS via
+  `created` (upsert idempotent), jamais `updated` — il n'a aucun moyen
+  fiable de savoir si une ligne existe déjà côté serveur, et l'upsert
+  traite les deux cas identiquement et sûrement au rejeu.
+  Push : capture `syncStartedAt` AVANT de construire la requête (une
+  écriture locale pendant l'appel réseau reste "non poussée" au prochain
+  cycle) ; checkpoint avancé SEULEMENT sur réponse 200 confirmée (LLD
+  point 3). Pull : boucle jusqu'à `has_more: false`, applique chaque ligne
+  via `resolveConflict` (3.4) en comparant au record local trouvé par
+  `local_id` (`collection.find`), crée un nouveau record avec CET id précis
+  via `prepareCreateFromDirtyRaw` (API publique WatermelonDB conçue pour
+  exactement ce cas) s'il n'existe pas encore localement — jamais de
+  tombe créée pour une entité supprimée jamais vue. Retry : backoff
+  2s/4s/8s/16s (5 tentatives), seulement sur erreur réseau/5xx/503 — un
+  4xx abandonne immédiatement sans retry inutile.
+  ⚠️ **PAS branché au boot de l'app** (`app/_layout.tsx`) — décision
+  délibérée : les migrations 3.1-3.3 ne sont pas appliquées sur la base
+  `lyxo` réelle, démarrer `startAutoSync()` maintenant ferait tourner ce
+  moteur contre un backend qui rejetterait tout. Le câblage au boot est une
+  décision séparée, à prendre une fois les migrations appliquées.
+  `tsc`/`eslint` propres (app + backend), 57/57 tests app.
 - [ ]  **3.6** Contrainte 1 appareil actif (gratuit) : migration devices +
   logique d'invalidation au nouveau login.
 - [ ]  **3.7** Torture tests manuels : mode avion pendant séance → sync ;

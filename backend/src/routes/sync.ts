@@ -83,6 +83,54 @@ async function loadOwnershipScope(
   return { workoutIds, workoutExerciseIds };
 }
 
+// Échappatoire de typage CIBLÉE (même compromis que `ws as any` dans
+// `lib/supabase-admin.ts`) : `local_id` sur workout_exercises/sets et la
+// table `personal_records` entière n'existent pas encore dans les types
+// générés (`backend/src/types/supabase.ts`) — leurs migrations ne sont pas
+// appliquées (2026-07-31, ce fichier même le documente en 3.2/3.3).
+// Regénérer les types résoudra ceci une fois les migrations appliquées ;
+// `db/schema.test.ts` (côté app) est le garde-fou qui rappellera de le
+// faire avant que la dérive ne devienne invisible.
+function rawTable(admin: ReturnType<typeof getSupabaseAdmin>, name: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (admin as any).from(name);
+}
+
+// Remplace, sur des lignes déjà récupérées, une colonne de clé étrangère
+// (id SERVEUR du parent) par le `local_id` de ce même parent — le client
+// ne doit JAMAIS voir un id serveur (ROADMAP 3.3 : il ne connaît/persiste
+// que des `local_id`, et n'a donc aucun moyen de relier un id serveur à sa
+// ligne locale, y compris entre deux cycles de sync si le parent n'est pas
+// retransmis dans la même page). Sans ce remplacement, l'app ne pourrait
+// jamais rattacher un `workout_exercise`/`set`/`personal_record` pull-é à
+// son parent local — trouvé en préparant `lib/sync/engine.ts`.
+async function remapParentLocalIds(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  rows: Array<Record<string, unknown>>,
+  fkColumn: string,
+  parentTable: string,
+  options: { nullable?: boolean } = {},
+): Promise<void> {
+  const ids = [
+    ...new Set(
+      rows
+        .map((row) => row[fkColumn])
+        .filter((value): value is string => options.nullable ? value !== null && value !== undefined : true),
+    ),
+  ];
+  if (ids.length === 0) return;
+
+  const { data, error } = await rawTable(admin, parentTable).select('id, local_id').in('id', ids);
+  if (error) throw new AppError('INTERNAL_ERROR', (error as { message: string }).message);
+
+  const map = new Map<string, string>((data ?? []).map((p: { id: string; local_id: string }) => [p.id, p.local_id]));
+  for (const row of rows) {
+    const current = row[fkColumn];
+    if (current === null || current === undefined) continue;
+    row[fkColumn] = map.get(current as string) ?? null;
+  }
+}
+
 // GET /v1/sync/pull — API_SPEC.md §4.1, ROADMAP 3.2.
 syncRouter.get(
   '/v1/sync/pull',
@@ -189,7 +237,25 @@ syncRouter.get(
         return;
       }
 
-      const typedRows = (rows ?? []) as Array<{ updated_at: string; id: string }>;
+      const typedRows = (rows ?? []) as Array<Record<string, unknown> & { updated_at: string; id: string }>;
+
+      // ⚠️ CORRIGÉ (2026-07-31, trouvé en préparant `lib/sync/engine.ts`
+      // côté app) : les colonnes de clé étrangère renvoyées ici
+      // (`workout_id`, `workout_exercise_id`, `set_id`) sont des uuid
+      // SERVEUR — le client ne les a jamais vus et n'a aucun moyen de les
+      // relier à sa ligne locale (il ne connaît/persiste que des
+      // `local_id`, par choix, voir ROADMAP 3.3). Remplacées ici par le
+      // `local_id` du PARENT avant de répondre : le client ne voit jamais
+      // un id serveur, il n'y a donc rien à mapper de son côté ni entre
+      // deux cycles de sync.
+      if (table === 'workout_exercises') {
+        await remapParentLocalIds(admin, typedRows, 'workout_id', 'workouts');
+      } else if (table === 'sets') {
+        await remapParentLocalIds(admin, typedRows, 'workout_exercise_id', 'workout_exercises');
+      } else if (table === 'personal_records') {
+        await remapParentLocalIds(admin, typedRows, 'set_id', 'sets', { nullable: true });
+      }
+
       data[table] = typedRows;
 
       if (typedRows.length === limit) {
@@ -250,19 +316,6 @@ syncRouter.get(
 // ci-dessus et que `db/pr-recording.ts` côté client.
 
 type IdCache = Map<string, string>;
-
-// Échappatoire de typage CIBLÉE (même compromis que `ws as any` dans
-// `lib/supabase-admin.ts`) : `local_id` sur workout_exercises/sets et la
-// table `personal_records` entière n'existent pas encore dans les types
-// générés (`backend/src/types/supabase.ts`) — leurs migrations ne sont pas
-// appliquées (2026-07-31, ce fichier même le documente en 3.2/3.3).
-// Regénérer les types résoudra ceci une fois les migrations appliquées ;
-// `db/schema.test.ts` (côté app) est le garde-fou qui rappellera de le
-// faire avant que la dérive ne devienne invisible.
-function rawTable(admin: ReturnType<typeof getSupabaseAdmin>, name: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (admin as any).from(name);
-}
 
 async function resolveServerId(
   admin: ReturnType<typeof getSupabaseAdmin>,
