@@ -635,8 +635,17 @@
   tests de 3.7 révèlent un vrai problème. `tsc`/`eslint` backend propres.
   **Pas de test d'intégration commis** (même raison qu'en 3.2 — TESTING.md
   §1.2 les prévoit contre une vraie base de test).
-- [ ]  **3.4** `lib/sync/conflict-resolution.ts` (LWW) + tests unitaires
-  (égalité de timestamp, suppression prioritaire).
+- [x]  **3.4** `lib/sync/conflict-resolution.ts` (LWW) + tests unitaires
+  (égalité de timestamp, suppression prioritaire). Fonction pure exacte de
+  LLD §3.2 : `remote.updatedAt >= local.updatedAt ? remote : local`. Pas de
+  branche spéciale pour `deletedAt` — une suppression gagne quand elle est
+  la plus récente, comme n'importe quelle modification ; les 5 tests
+  couvrent explicitement ce point (une modif plus récente bat une
+  suppression plus ancienne, pas l'inverse). Le garde-fou clock-skew
+  (LLD §3.2, "AJOUT audit technique") reste hors périmètre ici — c'est une
+  règle SERVEUR (`services/sync.service.ts`), pas cette fonction client
+  pure ; à construire quand le backend de sync appliquera réellement ce
+  résultat. 57/57 tests, `tsc`/`eslint` propres.
 - [ ]  **3.5** `lib/sync/engine.ts` : orchestration côté app (foreground,
   retour réseau, retry backoff).
 - [ ]  **3.6** Contrainte 1 appareil actif (gratuit) : migration devices +
