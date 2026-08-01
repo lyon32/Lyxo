@@ -54,7 +54,33 @@
     "matches_empty_subtitle": "Check back later — compatible lifters will show up here."
   },
   "profile": {
-    "sign_out": "Log out"
+    "sign_out": "Log out",
+    "manage_devices": "Manage my devices"
+  },
+  "settings": {
+    "devices": {
+      "screen_title": "My devices",
+      "loading": "Loading…",
+      "empty_title": "No devices",
+      "empty_description": "Devices connected to this account will show up here.",
+      "current_device_tag": "This device",
+      "unknown_device": "Unknown device",
+      "last_active_label": "Last active: {{value}}",
+      "last_active_now": "just now",
+      "last_active_minutes_one": "{{count}} min",
+      "last_active_minutes_other": "{{count}} min",
+      "last_active_hours_one": "{{count}} h",
+      "last_active_hours_other": "{{count}} h",
+      "last_active_days_one": "{{count}} day",
+      "last_active_days_other": "{{count}} days",
+      "disconnected_label": "Disconnected",
+      "disconnect_button": "Disconnect",
+      "disconnect_confirm_title": "Disconnect this device?",
+      "disconnect_confirm_message": "This device won't receive new data until it reconnects.",
+      "disconnect_confirm_action": "Disconnect",
+      "disconnect_cancel": "Cancel",
+      "disconnect_error": "Couldn't disconnect this device. Try again."
+    }
   },
   "notifications": {
     "header_title": "Notifications",
@@ -259,7 +285,11 @@
       "write_error_title": "Couldn't save",
       "validate_set": "Log set",
       "set_done": "Logged",
-      "finish_workout": "Finish workout"
+      "finish_workout": "Finish workout",
+      "remove_exercise_title": "Remove this exercise?",
+      "remove_exercise_message": "\"{{exerciseName}}\" and all its logged sets will be removed from this workout.",
+      "remove_exercise_cancel": "Cancel",
+      "remove_exercise_confirm": "Remove"
     },
     "input": {
       "weight_label": "Weight",

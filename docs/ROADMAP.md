@@ -737,8 +737,51 @@ en Phase 5 avec le volet `follows`.
   retrouve et les pousse à la prochaine connexion (même `device_id`,
   stable en SecureStore à travers le sign-out).
   `tsc`/`eslint` propres (app + backend), 57/57 tests app.
-- [ ]  **3.7** Torture tests manuels : mode avion pendant séance → sync ;
+
+  ⚠️ **RÉVISION 2026-08-01 — la contrainte ci-dessus est SUPPRIMÉE.**
+  Décision produit de l'utilisateur (pas une correction technique), prise
+  en testant 3.7 : la coupure automatique au login n'était pas instantanée
+  (elle n'a lieu qu'au prochain `pull`, lui-même déclenché par un événement
+  AppState/NetInfo) — pendant cette fenêtre, deux appareils du même compte
+  continuaient chacun à loguer dans leur propre séance locale
+  (`findOpenWorkout` ne regarde que WatermelonDB local, pas le serveur),
+  d'où des exercices différents constatés sur les deux téléphones. Plutôt
+  que de réduire encore la fenêtre, la règle "1 appareil actif si gratuit"
+  est retirée : **tous les tiers ont désormais le multi-device simultané**,
+  et la déconnexion d'un appareil devient une action MANUELLE (écran "Mes
+  appareils", type Netflix/Instagram), plus un levier de monétisation.
+  `POST /v1/devices/register` n'invalide plus aucun autre appareil
+  automatiquement. Nouveaux endpoints `GET /v1/devices` et
+  `POST /v1/devices/:deviceId/disconnect` (ownership vérifiée par
+  l'intersection profile_id+device_id, jamais de désactivation croisée
+  entre profils). Nouvelle colonne `devices.device_name` (label lisible,
+  `expo-device`, purement informatif). Nouvel écran client
+  `app/settings/devices.tsx`, lien depuis `app/(tabs)/profile.tsx`. Docs
+  corrigées en même temps : PRICING.md, CLAUDE_LYXO_V3.md §19.2, PRD.md
+  §1.3, DATA_MODEL.md §2.2, IMPLEMENTATION_PLAN.md. `tsc`/`eslint` propres
+  (app + backend), 59/59 tests app (schema.test.ts inchangé — `devices`
+  n'y a jamais figuré).
+- [x]  **3.7** Torture tests manuels : mode avion pendant séance → sync ;
   kill app mid-séance ; login sur 2e appareil. Zéro perte constatée.
+  **Test A (avion → sync)** : validé — séries loguées entièrement hors
+  ligne bien arrivées côté serveur au retour réseau, comptes vérifiés en
+  lecture directe sur la base `lyxo`. Deux bugs trouvés et corrigés en
+  cours de route : (1) le moteur retentait 5× push + 5× pull sur un DNS
+  mort en mode avion (~1 min d'activité réseau par déclenchement), assez
+  pour rendre l'écran du repos perceptiblement lent aux taps — fix :
+  vérification `NetInfo.fetch()` avant chaque tentative, pas seulement au
+  début du cycle ; (2) `startAutoSync()` n'avait aucun sync immédiat au
+  démarrage à froid — fix : appel explicite + sync périodique toutes les
+  3 min.
+  **Test B (kill app mid-séance)** : validé — séance intacte après kill,
+  sync reprise normalement à la réouverture.
+  **Test C (login sur 2e appareil)** : a révélé le problème de fenêtre de
+  divergence documenté ci-dessus dans la révision de 3.6 — traité en
+  changeant la règle produit plutôt qu'en réduisant encore le délai de
+  détection. Pas re-testé après coup avec un vrai 2e appareil physique
+  (émulateur utilisé pendant les tests supprimé) — à revalider à la
+  prochaine occasion d'avoir deux appareils sous la main, sans urgence
+  puisque la contrainte qu'il testait n'existe plus.
 - [ ]  **3.8** Indicateur SYNCED + micro-texte "Enregistré sur ton
   téléphone ✓" (3 premières séances).
 

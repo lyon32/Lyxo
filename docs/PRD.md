@@ -66,7 +66,7 @@ dérive de DEUX règles écrites — jamais réinventées en session :
 | Heatmap consistance | 🟢 | 4 opacités ember |
 | Historique > 90j masqué (gratuit) | 🟢 | Annoncé onboarding + notif J75 |
 | Profil (stats grille 3col, tabs) | 🟢 | |
-| Multi-device : 1 actif (gratuit) / illimité (Lyxo+) | 🟢 | Q11b |
+| Multi-device : illimité pour tous les tiers, déconnexion manuelle | 🟢 | Révisé 2026-08-01, remplace Q11b |
 
 ### 1.4bis Permission notifications (Android 13+) — flow obligatoire
 `POST_NOTIFICATIONS` est une permission RUNTIME depuis Android 13. La

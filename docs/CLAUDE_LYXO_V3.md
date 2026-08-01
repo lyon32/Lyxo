@@ -2376,9 +2376,13 @@ de produit.
 - PRs et 1RM estimé calculés sur TOUT l'historique pour TOUT LE MONDE
   (un PR est une vérité). Le gratuit masque uniquement la CONSULTATION
   des séances/graphes > 90 jours.
-- Multi-device : gratuit = 1 appareil actif (nouveau login déconnecte
-  l'ancien, table devices) ; Lyxo+ = multi-appareils simultanés.
-  La sync serveur tourne pour tous (zéro perte de données, promesse brief).
+- Multi-device : RÉVISÉ 2026-08-01 — tous les tiers (gratuit inclus)
+  peuvent avoir plusieurs appareils actifs simultanément ; plus de
+  déconnexion automatique au login. La déconnexion d'un appareil est une
+  action manuelle depuis un écran "Mes appareils" (sécurité de session,
+  type Netflix/Instagram), disponible pour tous, jamais un levier de
+  monétisation. La sync serveur tourne pour tous (zéro perte de données,
+  promesse brief) — inchangé.
 - Export : JSON brut GRATUIT (conformité RGPD, via page web compte) ;
   PDF/CSV mis en forme = Lyxo+.
 
@@ -2399,8 +2403,11 @@ de produit.
   NSFW-check automatique à l'upload (nsfwjs ou équivalent) + auto-hide
   3 signalements, Data Saver = photos au tap (placeholder flou),
   purge Storage à 24h par cron.
-- LWW silencieux (pas de toast de conflit) — acceptable car 1 appareil
-  actif en gratuit.
+- LWW silencieux (pas de toast de conflit) — acceptable même en
+  multi-device simultané (RÉVISÉ 2026-08-01) : un conflit suppose deux
+  appareils écrivant la même ligne à quelques secondes d'écart, un cas rare
+  en pratique (une séance active à la fois par profil, dans l'usage
+  normal) ; un toast systématique serait plus bruyant qu'utile.
 
 ### 19.4 Coach Mode V1 (Découverte — SANS argent, cf. §18.9)
 - Liaison client→coach : lien d'invitation lyxo.app/invite/{code}

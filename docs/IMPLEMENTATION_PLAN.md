@@ -154,8 +154,9 @@
 ### A2. Schéma de base + Auth (1-2 sessions)
 - Migrations Supabase : profiles (billing_region, trial_expires_at,
   trial_used, is_coach, is_private, weight_unit 'kg'|'lbs', goal,
-  preferred_split, weekly_goal, deleted_at…), devices (règle 1 appareil
-  actif Q11b), tables workout de base — TOUTES avec deleted_at (18.3).
+  preferred_split, weekly_goal, deleted_at…), devices (multi-device
+  simultané pour tous, déconnexion manuelle — révisé 2026-08-01, remplace
+  Q11b), tables workout de base — TOUTES avec deleted_at (18.3).
 - RLS policies dès maintenant, comptes privés inclus (Q8 — structurant).
 - Auth : email + Google via Supabase Auth (**PAS d'Apple Sign-In sur
   Android V1** — Apple réservé au build iOS, phase ultérieure,
@@ -223,7 +224,8 @@ HTML. En cas de doute visuel : le mockup prime sur LYXO_UI_PROMPT.md.
 ### C1. Backend /sync (1-2 sessions)
 - Protocole WatermelonDB pull/push : deleted_at partout, pagination 500
   rows + has_more (18.4), idempotence push, LWW silencieux (Q12a).
-- Enforcement 1 appareil actif (devices, invalidation de l'ancien token).
+- Multi-device simultané pour tous (révisé 2026-08-01) ; endpoint de
+  déconnexion manuelle par appareil (devices, écran "Mes appareils").
 ✅ Sortie : tests d'intégration du protocole (création/édition/suppression
 offline sur 2 comptes, rejeu, pagination).
 

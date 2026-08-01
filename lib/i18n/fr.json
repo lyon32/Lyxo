@@ -54,7 +54,33 @@
     "matches_empty_subtitle": "Reviens plus tard — on t'affichera ici les lifters compatibles avec ton profil."
   },
   "profile": {
-    "sign_out": "Se déconnecter"
+    "sign_out": "Se déconnecter",
+    "manage_devices": "Gérer mes appareils"
+  },
+  "settings": {
+    "devices": {
+      "screen_title": "Mes appareils",
+      "loading": "Chargement…",
+      "empty_title": "Aucun appareil",
+      "empty_description": "Les appareils connectés à ce compte apparaîtront ici.",
+      "current_device_tag": "Cet appareil",
+      "unknown_device": "Appareil inconnu",
+      "last_active_label": "Dernière activité : {{value}}",
+      "last_active_now": "à l'instant",
+      "last_active_minutes_one": "{{count}} min",
+      "last_active_minutes_other": "{{count}} min",
+      "last_active_hours_one": "{{count}} h",
+      "last_active_hours_other": "{{count}} h",
+      "last_active_days_one": "{{count}} jour",
+      "last_active_days_other": "{{count}} jours",
+      "disconnected_label": "Déconnecté",
+      "disconnect_button": "Déconnecter",
+      "disconnect_confirm_title": "Déconnecter cet appareil ?",
+      "disconnect_confirm_message": "Cet appareil ne pourra plus recevoir de nouvelles données tant qu'il ne se reconnectera pas.",
+      "disconnect_confirm_action": "Déconnecter",
+      "disconnect_cancel": "Annuler",
+      "disconnect_error": "Impossible de déconnecter cet appareil. Réessaie."
+    }
   },
   "notifications": {
     "header_title": "Notifications",
@@ -259,7 +285,11 @@
       "write_error_title": "Enregistrement impossible",
       "validate_set": "Valider la série",
       "set_done": "Série validée",
-      "finish_workout": "Terminer la séance"
+      "finish_workout": "Terminer la séance",
+      "remove_exercise_title": "Retirer cet exercice ?",
+      "remove_exercise_message": "\"{{exerciseName}}\" et toutes ses séries déjà loguées seront retirés de cette séance.",
+      "remove_exercise_cancel": "Annuler",
+      "remove_exercise_confirm": "Retirer"
     },
     "input": {
       "weight_label": "Poids",

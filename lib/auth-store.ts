@@ -1,5 +1,6 @@
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
+import * as Device from 'expo-device';
 import * as WebBrowser from 'expo-web-browser';
 import * as Sentry from '@sentry/react-native';
 import { create } from 'zustand';
@@ -9,19 +10,23 @@ import { getOrCreateDeviceId } from './device-id';
 import { pushOnboardingChoicesIfAny } from './push-onboarding-choices';
 import { supabase } from './supabase';
 
-// ROADMAP 3.6 : enregistre CET appareil au serveur à chaque connexion —
-// c'est cet appel qui désactive un éventuel autre appareil si le profil
-// est gratuit (`POST /v1/devices/register`). Échec avalé + Sentry plutôt
-// que bloquant : rater cet appel ne doit jamais empêcher un login réel de
-// se terminer (dégradation silencieuse, même logique que la notification
-// de fin de repos §1.2 — la fonctionnalité principale ne dépend jamais
-// d'une fonctionnalité secondaire qui échoue).
+// ROADMAP 3.6 : enregistre CET appareil au serveur à chaque connexion
+// (`POST /v1/devices/register`) — alimente l'écran manuel "Mes appareils"
+// (`app/settings/devices.tsx`), plus une histoire de désactivation
+// automatique depuis la révision du 2026-08-01 (multi-device simultané
+// pour tous les tiers). `device_name` est purement informatif pour cet
+// écran, jamais utilisé pour l'auth. Échec avalé + Sentry plutôt que
+// bloquant : rater cet appel ne doit jamais empêcher un login réel de se
+// terminer (dégradation silencieuse, même logique que la notification de
+// fin de repos §1.2 — la fonctionnalité principale ne dépend jamais d'une
+// fonctionnalité secondaire qui échoue).
 async function registerDeviceOnLogin(): Promise<void> {
   try {
     const deviceId = await getOrCreateDeviceId();
+    const deviceName = Device.modelName ?? Device.osName ?? null;
     const response = await apiFetch('/v1/devices/register', {
       method: 'POST',
-      body: JSON.stringify({ device_id: deviceId }),
+      body: JSON.stringify({ device_id: deviceId, device_name: deviceName }),
     });
     if (!response.ok) {
       throw new Error(`device registration failed: ${response.status}`);

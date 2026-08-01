@@ -54,11 +54,29 @@ function sleep(ms: number): Promise<void> {
 
 async function withRetry<T>(context: string, fn: () => Promise<T>): Promise<T | null> {
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    // Revérifié à CHAQUE tentative, pas seulement avant la première : le
+    // check fait par `syncNow()` peut lire un état NetInfo pas encore à
+    // jour au moment exact où le réseau tombe (course observée sur
+    // appareil le 2026-08-01 — `isConnected` encore `true` en cache
+    // pendant qu'un événement `false` vient tout juste d'être émis). Sans
+    // cette revérification, un cycle démarré juste avant la coupure allait
+    // quand même jusqu'au bout de ses 5 tentatives + backoff.
+    if (attempt > 0) {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        // eslint-disable-next-line no-console
+        console.log(`[sync] ${context} abandon : réseau coupé pendant les tentatives`);
+        return null;
+      }
+    }
+
     try {
       return await fn();
     } catch (error) {
       const isLastAttempt = attempt === RETRY_DELAYS_MS.length;
       const retryable = error instanceof RetryableSyncError;
+      // eslint-disable-next-line no-console
+      console.log(`[sync] ${context} error (attempt ${attempt}, retryable=${retryable}):`, error);
       if (!retryable || isLastAttempt) {
         // `DeviceInactiveError` est un flux métier attendu (un autre
         // appareil a pris la place, ROADMAP 3.6), pas un bug — le signaler
@@ -143,6 +161,16 @@ async function pushOnce(): Promise<void> {
   const syncStartedAt = Date.now();
 
   const changes = await buildPushChanges(lastPushedAt);
+  // eslint-disable-next-line no-console
+  console.log(
+    '[sync] push: lastPushedAt=',
+    new Date(lastPushedAt).toISOString(),
+    'tables=',
+    Object.keys(changes),
+    Object.fromEntries(
+      Object.entries(changes).map(([t, c]) => [t, { created: c!.created.length, deleted: c!.deleted.length }]),
+    ),
+  );
   if (Object.keys(changes).length === 0) {
     await setCheckpoint(LAST_PUSHED_AT_KEY, syncStartedAt);
     return;
@@ -151,6 +179,8 @@ async function pushOnce(): Promise<void> {
   const result = await withRetry('sync_push', () =>
     syncFetchJson('/v1/sync/push', { method: 'POST', body: JSON.stringify({ changes }) }),
   );
+  // eslint-disable-next-line no-console
+  console.log('[sync] push result:', result === null ? 'FAILED (see above/Sentry)' : result);
   // Échec après épuisement des tentatives : le checkpoint n'avance PAS,
   // ces changements seront repoussés au prochain cycle (LLD point 4,
   // "rejouer le batch non accusé à l'identique" — sûr grâce à l'idempotence
@@ -276,6 +306,12 @@ async function pullOnce(): Promise<void> {
 // --- cycle complet + déclencheurs --------------------------------------------
 
 let syncing = false;
+let lastAttemptAt = 0;
+// Un flap réseau (WiFi qui renégocie en sortant du mode avion, observé sur
+// appareil : 4 événements `isConnected=true` en quelques secondes) ne doit
+// pas relancer un cycle complet à chaque événement — le garde `syncing`
+// seul ne suffit pas, il ne protège que PENDANT un cycle, pas ENTRE deux.
+const MIN_INTERVAL_BETWEEN_ATTEMPTS_MS = 3000;
 
 // Push d'abord (les changements locaux partent avant qu'on n'incorpore des
 // données distantes), puis pull. Les deux étapes gèrent leur propre retry
@@ -283,11 +319,44 @@ let syncing = false;
 // n'empêche pas un pull de profiter quand même du réseau redevenu
 // disponible.
 export async function syncNow(): Promise<void> {
-  if (syncing) return; // un cycle déjà en cours : pas de doublon concurrent
+  if (syncing) {
+    // eslint-disable-next-line no-console
+    console.log('[sync] syncNow() ignoré : un cycle est déjà en cours');
+    return;
+  }
+  if (Date.now() - lastAttemptAt < MIN_INTERVAL_BETWEEN_ATTEMPTS_MS) {
+    // eslint-disable-next-line no-console
+    console.log('[sync] syncNow() ignoré : trop proche de la tentative précédente');
+    return;
+  }
+  lastAttemptAt = Date.now();
+
+  // ⚠️ Vérifié AVANT toute tentative, pas découvert via l'échec d'un
+  // premier `fetch()` : sans ça, chaque déclenchement en mode avion lançait
+  // jusqu'à 10 tentatives réseau (5 pour push, 5 pour pull) qui échouent
+  // chacune sur un timeout DNS — près d'une minute d'activité réseau en
+  // tâche de fond à chaque événement AppState/NetInfo, assez pour rendre
+  // l'écran du repos (qui se redessine toutes les 250 ms) perceptiblement
+  // lent aux taps. Bug constaté sur appareil le 2026-08-01.
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    // eslint-disable-next-line no-console
+    console.log('[sync] syncNow() ignoré : pas de connexion réseau');
+    return;
+  }
+
   syncing = true;
+  // eslint-disable-next-line no-console
+  console.log('[sync] syncNow() démarré');
   try {
     await pushOnce();
     await pullOnce();
+    // eslint-disable-next-line no-console
+    console.log('[sync] syncNow() terminé');
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.log('[sync] syncNow() a levé une erreur inattendue:', error);
+    throw error;
   } finally {
     syncing = false;
   }
@@ -296,6 +365,20 @@ export async function syncNow(): Promise<void> {
 let started = false;
 let removeAppStateListener: (() => void) | null = null;
 let removeNetInfoListener: (() => void) | null = null;
+let periodicSyncInterval: ReturnType<typeof setInterval> | null = null;
+
+// Un cycle complet toutes les 3 minutes tant que l'app est au premier plan
+// (le timer JS ne tourne de toute façon pas en arrière-plan sur RN — les
+// déclencheurs AppState/NetInfo prennent le relais dès le retour). Réduit
+// la fenêtre "appareil désactivé mais pas encore au courant" (ROADMAP 3.6)
+// pour une session longue restée ouverte sans jamais déclencher les
+// triggers événementiels — ne l'élimine pas : la contrainte "100%
+// offline" (IMPLEMENTATION_PLAN.md, Bloc B) interdit d'exiger une
+// vérification réseau avant d'autoriser à loguer une série. Bug constaté
+// sur appareil le 2026-08-01 : sans ça, deux appareils du même compte
+// pouvaient diverger (séances locales différentes) pendant toute la durée
+// où l'ancien appareil restait ouvert sans redémarrage complet.
+const PERIODIC_SYNC_INTERVAL_MS = 3 * 60 * 1000;
 
 // Déclencheurs "naturels" (LLD §3.2/CONVENTIONS §5.8) : retour au premier
 // plan et retour réseau. Singleton — appeler deux fois est un no-op, pas un
@@ -305,20 +388,40 @@ export function startAutoSync(): void {
   started = true;
 
   const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
+    // eslint-disable-next-line no-console
+    console.log('[sync] AppState change:', state);
     if (state === 'active') void syncNow();
   });
   removeAppStateListener = () => appStateSub.remove();
 
   const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
+    // eslint-disable-next-line no-console
+    console.log('[sync] NetInfo change: isConnected=', state.isConnected, 'type=', state.type);
     if (state.isConnected) void syncNow();
   });
   removeNetInfoListener = unsubscribeNetInfo;
+
+  periodicSyncInterval = setInterval(() => void syncNow(), PERIODIC_SYNC_INTERVAL_MS);
+
+  // ⚠️ Appelé IMMÉDIATEMENT, pas seulement au premier événement AppState/
+  // NetInfo : un démarrage à froid ne déclenche pas forcément de
+  // transition 'active' (l'app EST déjà 'active' au montage, il n'y a pas
+  // de changement d'état à observer) — sans cet appel explicite, ouvrir
+  // l'app pouvait ne rien vérifier du tout tant qu'aucun trigger
+  // événementiel ne survenait par ailleurs. C'est cet appel qui détecte le
+  // plus tôt possible qu'un autre appareil a pris la place.
+  void syncNow();
+
+  // eslint-disable-next-line no-console
+  console.log('[sync] startAutoSync() : listeners AppState/NetInfo enregistrés + sync immédiat');
 }
 
 export function stopAutoSync(): void {
   removeAppStateListener?.();
   removeNetInfoListener?.();
+  if (periodicSyncInterval) clearInterval(periodicSyncInterval);
   removeAppStateListener = null;
   removeNetInfoListener = null;
+  periodicSyncInterval = null;
   started = false;
 }

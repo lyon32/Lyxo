@@ -5,20 +5,31 @@ import { logger } from '../lib/logger';
 import { rawTable } from '../lib/raw-table';
 import { getSupabaseAdmin } from '../lib/supabase-admin';
 
-// ROADMAP 3.6 — contrainte 1 appareil actif (gratuit), DATA_MODEL §2.2.
+// ROADMAP 3.6, DATA_MODEL §2.2 — vérifie qu'un appareil est toujours
+// actif avant de le laisser lire de la sync.
+//
+// ⚠️ RÉVISÉ 2026-08-01 : `is_active` ne bascule plus jamais
+// automatiquement au login (la contrainte "1 appareil si gratuit" est
+// supprimée, tous les tiers ont le multi-device simultané) — seule une
+// action MANUELLE de l'utilisateur (`POST /v1/devices/:deviceId/
+// disconnect`, `routes/devices.ts`) peut désormais désactiver un appareil.
+// Ce middleware reste nécessaire tel quel : quelqu'un peut toujours choisir
+// de déconnecter un vieux téléphone depuis l'écran "Mes appareils", et ce
+// téléphone doit bien s'arrêter de tirer de nouvelles données.
+//
 // Appliqué SÉLECTIVEMENT, jamais dans `requireAuth` lui-même : `requireAuth`
 // protège déjà `profiles.ts` et le reste de `sync.ts`, et retrofiter cette
-// vérification là casserait des routes qui n'ont rien à voir avec la règle
-// multi-device. Ce middleware ne se chaîne QU'APRÈS `requireAuth`, sur les
-// routes qui doivent vraiment refuser un appareil désactivé.
+// vérification là casserait des routes qui n'ont rien à voir avec la
+// gestion d'appareils. Ce middleware ne se chaîne QU'APRÈS `requireAuth`,
+// sur les routes qui doivent vraiment refuser un appareil désactivé.
 //
 // ⚠️ PAS appliqué à `POST /v1/sync/push` — décision explicite, pas un
-// oubli : un appareil qu'on vient de désactiver peut avoir des séances déjà
-// créées localement, en attente d'envoi. Les bloquer ne protège rien (c'est
-// de la donnée légitime déjà produite) et violerait le critère de succès
-// n°1 ("zéro perte de séance"). Seule la lecture (`GET /v1/sync/pull`) est
-// coupée : l'appareil peut vider ce qu'il a, jamais récupérer plus après
-// avoir été remplacé.
+// oubli : un appareil qu'on vient de déconnecter manuellement peut avoir
+// des séances déjà créées localement, en attente d'envoi. Les bloquer ne
+// protège rien (c'est de la donnée légitime déjà produite) et violerait le
+// critère de succès n°1 ("zéro perte de séance"). Seule la lecture
+// (`GET /v1/sync/pull`) est coupée : l'appareil peut vider ce qu'il a,
+// jamais récupérer plus après avoir été déconnecté.
 //
 // ⚠️ Fail-CLOSED si l'en-tête `X-Device-Id` est absent — décision
 // explicite, pas un défaut. Aucun coach beta n'est encore installé

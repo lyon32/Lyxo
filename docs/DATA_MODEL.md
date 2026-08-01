@@ -155,18 +155,28 @@ create table devices (
                                        -- stable de l'appareil, générée client
                                        -- (SecureStore), pas un second uuid serveur
   push_token text,
+  device_name text,                   -- AJOUTÉ 2026-08-01 : label lisible
+                                       -- (Device.modelName côté client),
+                                       -- nullable, purement informatif —
+                                       -- jamais utilisé pour l'auth/ownership
+                                       -- (ça reste device_id)
   last_active_at timestamptz not null default now(),
-  is_active boolean not null default true,  -- 1 seul actif si gratuit (Q11b)
+  is_active boolean not null default true,  -- flag MANUEL (déconnexion
+                                             -- volontaire depuis "Mes
+                                             -- appareils") — plus de règle
+                                             -- de tier automatique
   created_at timestamptz not null default now()
 );
 create index idx_devices_profile_active on devices(profile_id) where is_active = true;
 create unique index uq_device_profile_device on devices(profile_id, device_id);  -- identité, pas activité — voir note ci-dessous
--- ⚠️ CORRECTION (audit doc) : PAS d'index UNIQUE partiel ici — un index
--- unique ne peut pas être "levé dynamiquement" et bloquerait physiquement
--- le multi-device des abonnés Lyxo+ (PRICING §5). La règle "1 appareil
--- actif si gratuit" est appliquée par la LOGIQUE APPLICATIVE au login
--- (invalidation de l'ancien device si statut premium dérivé = false),
--- couverte par un test d'intégration dédié (ROADMAP 3.6).
+-- ⚠️ CORRECTION (audit doc, historique) : un index UNIQUE partiel sur
+-- `is_active` avait été explicitement écarté ici pour ne pas bloquer le
+-- multi-device Lyxo+ — devenu SANS OBJET le 2026-08-01, la règle "1
+-- appareil actif si gratuit" ayant été supprimée : plus AUCUN tier n'a de
+-- restriction de nombre d'appareils actifs simultanés, gratuit inclus.
+-- `is_active` ne bascule plus que par une action MANUELLE de l'utilisateur
+-- (`POST /v1/devices/:deviceId/disconnect`), jamais par la logique
+-- applicative au login.
 -- `uq_device_profile_device` ci-dessus n'est PAS ce type d'index : il porte
 -- sur l'IDENTITÉ (profile_id, device_id), jamais sur `is_active` — aucun
 -- conflit avec la correction précédente, aucune restriction sur le nombre
