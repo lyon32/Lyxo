@@ -55,6 +55,7 @@ export type Database = {
       devices: {
         Row: {
           created_at: string
+          device_id: string
           id: string
           is_active: boolean
           last_active_at: string
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          device_id: string
           id?: string
           is_active?: boolean
           last_active_at?: string
@@ -71,6 +73,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          device_id?: string
           id?: string
           is_active?: boolean
           last_active_at?: string
@@ -125,6 +128,82 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      personal_records: {
+        Row: {
+          achieved_at: string
+          created_at: string
+          deleted_at: string | null
+          estimated_1rm_kg: number | null
+          exercise_id: string
+          id: string
+          ineligibility_reason: string | null
+          is_social_eligible: boolean
+          local_id: string
+          pr_type: string
+          profile_id: string
+          reps: number
+          set_id: string | null
+          updated_at: string
+          weight_kg: number
+        }
+        Insert: {
+          achieved_at: string
+          created_at?: string
+          deleted_at?: string | null
+          estimated_1rm_kg?: number | null
+          exercise_id: string
+          id?: string
+          ineligibility_reason?: string | null
+          is_social_eligible?: boolean
+          local_id: string
+          pr_type: string
+          profile_id: string
+          reps: number
+          set_id?: string | null
+          updated_at?: string
+          weight_kg: number
+        }
+        Update: {
+          achieved_at?: string
+          created_at?: string
+          deleted_at?: string | null
+          estimated_1rm_kg?: number | null
+          exercise_id?: string
+          id?: string
+          ineligibility_reason?: string | null
+          is_social_eligible?: boolean
+          local_id?: string
+          pr_type?: string
+          profile_id?: string
+          reps?: number
+          set_id?: string | null
+          updated_at?: string
+          weight_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_records_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_records_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_records_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "sets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -213,6 +292,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           is_completed: boolean
+          local_id: string
           reps: number
           rpe: number | null
           set_number: number
@@ -225,6 +305,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_completed?: boolean
+          local_id: string
           reps: number
           rpe?: number | null
           set_number: number
@@ -237,6 +318,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           is_completed?: boolean
+          local_id?: string
           reps?: number
           rpe?: number | null
           set_number?: number
@@ -261,6 +343,7 @@ export type Database = {
           deleted_at: string | null
           exercise_id: string | null
           id: string
+          local_id: string
           order_index: number
           updated_at: string
           workout_id: string
@@ -271,6 +354,7 @@ export type Database = {
           deleted_at?: string | null
           exercise_id?: string | null
           id?: string
+          local_id: string
           order_index: number
           updated_at?: string
           workout_id: string
@@ -281,6 +365,7 @@ export type Database = {
           deleted_at?: string | null
           exercise_id?: string | null
           id?: string
+          local_id?: string
           order_index?: number
           updated_at?: string
           workout_id?: string

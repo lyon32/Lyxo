@@ -20,15 +20,18 @@ import { join } from 'path';
 // tête de `db/schema.ts`.
 
 const ROOT = join(__dirname, '..');
-const TABLES = ['workouts', 'workout_exercises', 'sets'] as const;
+const TABLES = ['workouts', 'workout_exercises', 'sets', 'personal_records'] as const;
 
 // Colonnes présentes côté Postgres et volontairement absentes en local.
+// `id` : uuid serveur, inconnu tant que la ligne n'a pas été poussée.
+// `local_id` : c'est l'`id` du record WatermelonDB lui-même (même principe
+// pour les 4 tables depuis ROADMAP 3.3/3.6 — voir la table de
+// correspondance en tête de `db/schema.ts`), jamais un second uuid généré.
 const EXPECTED_LOCAL_ABSENT: Record<string, string[]> = {
-  // `id` : uuid serveur, inconnu tant que la ligne n'a pas été poussée.
-  // `local_id` : c'est l'`id` du record WatermelonDB lui-même.
   workouts: ['id', 'local_id'],
-  workout_exercises: ['id'],
-  sets: ['id'],
+  workout_exercises: ['id', 'local_id'],
+  sets: ['id', 'local_id'],
+  personal_records: ['id', 'local_id'],
 };
 
 interface LocalColumn {

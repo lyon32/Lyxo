@@ -571,6 +571,27 @@
 
 ## PHASE 3 — SYNC (Bloc C — le socle, jamais compressé)
 
+**Migrations 2.10/3.1-3.6 appliquées sur la base `lyxo` réelle le
+2026-08-01**, débloquant 3.7. Avant l'application, `supabase migration
+list` montrait une dérive sur 7 des 8 migrations déjà en place (versions
+distantes différentes des noms de fichiers locaux, jamais réparée) —
+alignée via `supabase migration repair` (historique seulement, aucun
+schéma touché) avant `supabase db push`, pour ne pas ajouter une 3e sorte
+de dérive. Types backend régénérés (`npm run supabase:generate-types`),
+`db/schema.test.ts` étendu à `personal_records` (absent du garde-fou
+jusqu'ici) et corrigé pour reconnaître que `local_id` est absent de
+WatermelonDB sur LES 4 tables (pas seulement `workouts`) — `.id` du record
+en tient lieu partout, jamais un second uuid. `startAutoSync()` branché
+dans `app/_layout.tsx`. Corrigé au passage : `supabase/config.toml` avait
+`[local_smtp]` (jamais une clé reconnue par le CLI — le nom correct est
+`[inbucket]`) et un bloc `[experimental.pgdelta]` invalide, qui
+bloquaient TOUTE commande `supabase` avant même de démarrer.
+Deux gaps trouvés en relisant le SQL avant push, non bloquants, consignés
+pour ne pas les perdre : `personal_records.set_id` (FK sans index,
+DATA_MODEL §2.8) et la policy `personal_records_select_public` qui
+n'exclut pas `is_reviewer=true` (SECURITY_NOTES S12) — les deux à traiter
+en Phase 5 avec le volet `follows`.
+
 - [x]  **3.1** Migration : ajouter `deleted_at` sur TOUTES les tables SYNC
   créées jusqu'ici (si pas déjà fait dès la création — vérifier). **Vérifié
   le 2026-07-31, déjà conforme, aucune migration nécessaire** : les six

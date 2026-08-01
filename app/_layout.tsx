@@ -23,6 +23,7 @@ import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../lib/auth-store';
 import { getStoredLanguage } from '../lib/onboarding-storage';
 import { initSentry } from '../lib/sentry';
+import { startAutoSync } from '../lib/sync/engine';
 import { startSupabaseAutoRefreshGating } from '../lib/supabase-auto-refresh';
 
 initSentry();
@@ -54,6 +55,10 @@ export default Sentry.wrap(function RootLayout() {
   useEffect(() => {
     useAuthStore.getState().bootstrap();
     startSupabaseAutoRefreshGating();
+    // ROADMAP 3.5/3.7 : migrations 3.1-3.6 appliquées sur `lyxo` le
+    // 2026-07-31 (voir ROADMAP.md) — l'auto-sync peut enfin tourner contre
+    // un backend qui reconnaît réellement ces tables/colonnes.
+    startAutoSync();
   }, []);
 
   useEffect(() => {

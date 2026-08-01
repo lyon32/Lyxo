@@ -324,6 +324,13 @@ create unique index uq_personal_record_local on personal_records(profile_id, loc
 --   weight_kg > 4 × body_weight OU delta > +15% vs précédent PR
 --   OU < 3 séances loggées sur l'exercice
 ```
+⚠️ **Manque un index sur `set_id`** (trouvé le 2026-07-31, pas encore
+corrigé) : c'est une FK sans index — Postgres n'indexe jamais
+automatiquement une clé étrangère. Ralentit les jointures et élargit les
+verrous pris lors d'un `delete`/soft-delete côté `sets`. Volume faible
+aujourd'hui (table vide), pas urgent, mais à ajouter (`create index
+idx_pr_set on personal_records(set_id)`) au prochain passage sur cette
+table plutôt que d'attendre un signal de lenteur.
 RLS (audit doc #23, defense-in-depth) : écriture réservée à
 `profile_id = auth.uid()`. Lecture : soi-même toujours ; pour les
 tiers (leaderboard), uniquement les lignes `is_social_eligible = true`
