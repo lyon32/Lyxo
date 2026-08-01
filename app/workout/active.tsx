@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Flag, Plus, X } from 'lucide-react-native';
+import { Flag, Plus, Trash2, X } from 'lucide-react-native';
 
 import { EmptyState } from '../../components/EmptyState';
 import { ExercisePicker } from '../../components/ExercisePicker';
@@ -61,7 +61,8 @@ export default function ActiveWorkoutScreen() {
   const { t, i18n } = useTranslation();
   const locale: Locale = i18n.language === 'en' ? 'en' : 'fr';
 
-  const { view, ready, error, addExercises, addSet, updateSet, finishWorkout } = useActiveWorkout();
+  const { view, ready, error, addExercises, addSet, updateSet, removeExercise, finishWorkout } =
+    useActiveWorkout();
   const router = useRouter();
 
   // Le référentiel d'exercices vit dans un store réseau, pas en base locale :
@@ -217,6 +218,25 @@ export default function ActiveWorkoutScreen() {
   const stepSet = async (setId: string, patch: { weightKg?: number; reps?: number }) => {
     setBuffer(null);
     await updateSet(setId, patch);
+  };
+
+  // Confirmation obligatoire : contrairement à un tap de trop sur un
+  // stepper, supprimer un exercice efface aussi toutes ses séries déjà
+  // loguées (soft delete en cascade, `db/use-active-workout.ts`) — une
+  // perte de données réelle si c'est un geste accidentel.
+  const handleRemoveExercise = (workoutExerciseId: string, exerciseName: string) => {
+    Alert.alert(
+      t('workout.active.remove_exercise_title'),
+      t('workout.active.remove_exercise_message', { exerciseName }),
+      [
+        { text: t('workout.active.remove_exercise_cancel'), style: 'cancel' },
+        {
+          text: t('workout.active.remove_exercise_confirm'),
+          style: 'destructive',
+          onPress: () => removeExercise(workoutExerciseId),
+        },
+      ],
+    );
   };
 
   // Démarrage effectif du repos, factorisé : appelé directement quand aucun
@@ -400,31 +420,31 @@ export default function ActiveWorkoutScreen() {
             />
           ) : (
             <View className="gap-4">
-              {view.exercises.map((item) => (
-                <ExerciseCard
-                  key={item.id}
-                  item={item}
-                  exercise={item.exerciseId ? exercisesById.get(item.exerciseId) : undefined}
-                  locale={locale}
-                  editing={editing}
-                  buffer={buffer}
-                  registerSetRow={registerSetRow}
-                  onAddSet={() => addSet(item.id)}
-                  onFocusField={focusField}
-                  onStepSet={stepSet}
-                  onValidateSet={(setId) => {
-                    const foundExercise = item.exerciseId
-                      ? exercisesById.get(item.exerciseId)
-                      : undefined;
-                    const exerciseName = foundExercise
-                      ? i18n.language === 'en'
-                        ? foundExercise.name_en
-                        : foundExercise.name_fr
-                      : '';
-                    validateSet(setId, item.exerciseId, exerciseName);
-                  }}
-                />
-              ))}
+              {view.exercises.map((item) => {
+                const foundExercise = item.exerciseId ? exercisesById.get(item.exerciseId) : undefined;
+                const exerciseName = foundExercise
+                  ? i18n.language === 'en'
+                    ? foundExercise.name_en
+                    : foundExercise.name_fr
+                  : t('workout.active.exercise_unavailable');
+
+                return (
+                  <ExerciseCard
+                    key={item.id}
+                    item={item}
+                    exercise={foundExercise}
+                    locale={locale}
+                    editing={editing}
+                    buffer={buffer}
+                    registerSetRow={registerSetRow}
+                    onAddSet={() => addSet(item.id)}
+                    onFocusField={focusField}
+                    onStepSet={stepSet}
+                    onValidateSet={(setId) => validateSet(setId, item.exerciseId, exerciseName)}
+                    onRemoveExercise={() => handleRemoveExercise(item.id, exerciseName)}
+                  />
+                );
+              })}
             </View>
           )}
 
@@ -527,6 +547,7 @@ interface ExerciseCardProps {
   onFocusField: (setId: string, field: WeightRepsField) => void;
   onStepSet: (setId: string, patch: { weightKg?: number; reps?: number }) => void;
   onValidateSet: (setId: string) => void;
+  onRemoveExercise: () => void;
 }
 
 function ExerciseCard({
@@ -540,6 +561,7 @@ function ExerciseCard({
   onFocusField,
   onStepSet,
   onValidateSet,
+  onRemoveExercise,
 }: ExerciseCardProps) {
   const { t, i18n } = useTranslation();
   // Le référentiel arrive du réseau : tant qu'il n'est pas chargé (ou hors
@@ -552,7 +574,21 @@ function ExerciseCard({
 
   return (
     <View className="rounded-card border border-border bg-card p-4">
-      <Text className="font-inter-semibold text-fg">{name}</Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="flex-1 font-inter-semibold text-fg">{name}</Text>
+        {/* Icône discrète, jamais ember (réservé aux actions primaires) —
+            même logique que l'affordance "..." du long-press ailleurs dans
+            l'app : visible sans crier, une confirmation protège le vrai
+            geste destructeur. */}
+        <Pressable
+          onPress={onRemoveExercise}
+          hitSlop={12}
+          className="ml-2 h-tap w-tap items-center justify-center"
+          accessibilityLabel={t('workout.active.remove_exercise_confirm')}
+        >
+          <Trash2 color="#8E8781" size={18} />
+        </Pressable>
+      </View>
 
       {item.sets.length === 0 ? (
         <Text className="mt-2 text-sm text-muted">{t('workout.active.no_sets')}</Text>

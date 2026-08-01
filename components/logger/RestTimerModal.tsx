@@ -38,6 +38,16 @@ export function RestTimerModal() {
     // ancien) jusqu'au premier tick de l'intervalle, jusqu'à 250 ms plus tard.
     // Résultat observé : le premier rendu affichait 90 s + tout le temps
     // écoulé depuis le montage — jamais le vrai 1:30.
+    //
+    // ⚠️ `react-hooks/set-state-in-effect` flaggé ici, volontairement pas
+    // corrigé autrement : la seule alternative testée ("ajuster le state
+    // pendant le rendu") appelle `Date.now()` pendant le rendu, ce qui viole
+    // `react-hooks/purity` à la place ("Cannot call impure function during
+    // render") — lire l'heure courante est intrinsèquement un effet de
+    // bord, aucune des deux règles ne peut être satisfaite en même temps
+    // pour ce cas précis. Se synchroniser sur une horloge externe est
+    // exactement ce à quoi sert un effet ; ce `setState` reste correct.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
 
     const interval = setInterval(() => setNow(Date.now()), DISPLAY_TICK_MS);

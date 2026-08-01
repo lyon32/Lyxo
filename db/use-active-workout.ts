@@ -268,6 +268,38 @@ export function useActiveWorkout() {
     [runWrite],
   );
 
+  // Retire un exercice de la séance en cours (soft delete, comme tout le
+  // reste — DATA_MODEL §2.6/§2.7). Ses séries sont soft-deletées avec lui
+  // dans la MÊME écriture : les laisser en `deleted_at = null` créerait des
+  // séries orphelines rattachées à un exercice qu'on ne peut plus valider
+  // ni afficher — un vrai risque de sync, pas juste un détail d'UI.
+  const removeExercise = useCallback(
+    async (workoutExerciseId: string) => {
+      await runWrite('workout_remove_exercise', async () => {
+        const row = await database.get<WorkoutExercise>('workout_exercises').find(workoutExerciseId);
+        const sets = await database
+          .get<WorkoutSet>('sets')
+          .query(Q.where('workout_exercise_id', workoutExerciseId), Q.where('deleted_at', null))
+          .fetch();
+
+        const deletedAt = new Date();
+        await database.write(async () => {
+          await database.batch(
+            row.prepareUpdate((r) => {
+              r.deletedAt = deletedAt;
+            }),
+            ...sets.map((set) =>
+              set.prepareUpdate((s) => {
+                s.deletedAt = deletedAt;
+              }),
+            ),
+          );
+        });
+      });
+    },
+    [runWrite],
+  );
+
   const updateSet = useCallback(
     async (setId: string, patch: { weightKg?: number; reps?: number; isCompleted?: boolean }) => {
       // Mise à jour OPTIMISTE de la vue, avant l'écriture.
@@ -352,5 +384,5 @@ export function useActiveWorkout() {
     return finishedId;
   }, [runWrite]);
 
-  return { view, ready, error, addExercises, addSet, updateSet, finishWorkout };
+  return { view, ready, error, addExercises, addSet, updateSet, removeExercise, finishWorkout };
 }
