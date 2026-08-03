@@ -1,6 +1,7 @@
 import { Q } from '@nozbe/watermelondb';
 
 import { database } from './index';
+import { requestSync } from '../lib/sync/engine';
 import type { PersonalRecord } from './models/PersonalRecord';
 import type { Workout } from './models/Workout';
 import type { WorkoutExercise } from './models/WorkoutExercise';
@@ -147,6 +148,11 @@ export async function recordSetPRs(params: {
       ),
     );
   });
+
+  // Un PR est écrit hors du `runWrite` de `use-active-workout.ts`, donc son
+  // push doit être demandé ici — sinon il n'atteindrait le serveur qu'au
+  // prochain déclencheur naturel (jusqu'à 3 min).
+  requestSync('structural');
 
   return verdicts.map(({ pr, isSocialEligible, reason }) => ({
     type: pr.type,

@@ -16,6 +16,7 @@ import {
   requestNotificationPermission,
 } from '../../lib/notifications';
 import { useRestTimerStore } from '../../lib/rest-timer-store';
+import { acquireFastSync } from '../../lib/sync/engine';
 import {
   currentProfileId,
   getSetSnapshot,
@@ -73,6 +74,13 @@ export default function ActiveWorkoutScreen() {
   useEffect(() => {
     loadExercises();
   }, [loadExercises]);
+
+  // Cadence de sync rapide tant que cet écran est monté — c'est le seul
+  // endroit où deux appareils du même compte travaillent en parallèle sur
+  // la même donnée (`lib/sync/engine.ts`). Le nettoyage rend la référence,
+  // et le moteur retombe sur sa minuterie de 3 min : la cadence rapide ne
+  // survit jamais à la sortie de l'écran.
+  useEffect(() => acquireFastSync(), []);
 
   const exercisesById = useMemo(
     () => new Map(exercises.map((exercise) => [exercise.id, exercise])),

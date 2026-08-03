@@ -7,6 +7,19 @@ import type { Workout } from './models/Workout';
 import type { WorkoutExercise } from './models/WorkoutExercise';
 import type { WorkoutSet } from './models/WorkoutSet';
 import { getCachedProfileId } from '../lib/auth-store';
+import { pullBeforeCreatingWorkout, requestSync, type SyncReason } from '../lib/sync/engine';
+
+// Classe de debounce par contexte d'écriture (`lib/sync/engine.ts`). Seul
+// `workout_update_set` est 'value' : c'est le stepper de poids/reps, le
+// seul geste que l'utilisateur répète des dizaines de fois par minute.
+// Tout le reste est un geste isolé, donc 'structural' (plus réactif).
+const SYNC_REASON_BY_CONTEXT: Record<string, SyncReason> = {
+  workout_add_exercises: 'structural',
+  workout_add_set: 'structural',
+  workout_remove_exercise: 'structural',
+  workout_finish: 'structural',
+  workout_update_set: 'value',
+};
 
 export interface ActiveSetView {
   id: string;
@@ -68,6 +81,14 @@ export async function currentProfileId(): Promise<string | null> {
 
 // La séance "en cours" est celle qui n'a pas de `completed_at` — c'est ce
 // champ, et lui seul, qui distingue ouverte de terminée (DATA_MODEL §2.5).
+//
+// ⚠️ Trié par `updated_at`, PAS `started_at` (révision 2026-08-02) : "la
+// séance active" veut dire "celle que l'utilisateur a touchée en dernier",
+// pas "celle qui a commencé le plus tard" — une séance ouverte ce matin et
+// travaillée il y a 3 minutes est plus active qu'une séance ouverte il y a
+// une heure et abandonnée aussitôt. `started_at` répondait à la mauvaise
+// question et rendait invisible la séance qu'on venait de continuer sur un
+// second appareil.
 async function findOpenWorkout(profileId: string): Promise<Workout | null> {
   const rows = await database
     .get<Workout>('workouts')
@@ -75,11 +96,128 @@ async function findOpenWorkout(profileId: string): Promise<Workout | null> {
       Q.where('profile_id', profileId),
       Q.where('completed_at', null),
       Q.where('deleted_at', null),
-      Q.sortBy('started_at', Q.desc),
+      Q.sortBy('updated_at', Q.desc),
       Q.take(1),
     )
     .fetch();
   return rows[0] ?? null;
+}
+
+// Dernier instant d'activité réelle d'une séance : le `updated_at` de sa
+// dernière série si elle en a, sinon celui de la séance elle-même. Sert à la
+// fois à fermer une séance "perdante" (jamais avec `now()`, sinon une
+// séance ouverte à 06:57 et abandonnée à 07:05 se verrait attribuer une
+// durée de plusieurs heures) et à détecter une séance oubliée depuis trop
+// longtemps.
+async function lastActivityAt(workout: Workout): Promise<Date> {
+  const fallback = workout.updatedAt ?? workout.startedAt ?? new Date(0);
+  const workoutExercises = await database
+    .get<WorkoutExercise>('workout_exercises')
+    .query(Q.where('workout_id', workout.id))
+    .fetch();
+  if (workoutExercises.length === 0) return fallback;
+
+  const sets = await database
+    .get<WorkoutSet>('sets')
+    .query(Q.where('workout_exercise_id', Q.oneOf(workoutExercises.map((we) => we.id))))
+    .fetch();
+  if (sets.length === 0) return fallback;
+
+  return sets.reduce((latest, set) => {
+    const touchedAt = set.updatedAt ?? new Date(0);
+    return touchedAt > latest ? touchedAt : latest;
+  }, fallback);
+}
+
+async function activeSetCount(workoutId: string): Promise<number> {
+  const workoutExercises = await database
+    .get<WorkoutExercise>('workout_exercises')
+    .query(Q.where('workout_id', workoutId), Q.where('deleted_at', null))
+    .fetch();
+  if (workoutExercises.length === 0) return 0;
+  return database
+    .get<WorkoutSet>('sets')
+    .query(
+      Q.where('workout_exercise_id', Q.oneOf(workoutExercises.map((we) => we.id))),
+      Q.where('deleted_at', null),
+    )
+    .fetchCount();
+}
+
+// Ferme (ou efface) une séance qui ne doit plus être "en cours" — jamais
+// fusionnée avec une autre (décision utilisateur 2026-08-02) : réassigner
+// des `workout_id` puis supprimer est irréversible si l'arbitrage se
+// trompe, et fabrique une durée fictive (une séance de 06:57 fusionnée avec
+// une de 10:59 afficherait 4h de séance, qui n'a jamais existé).
+//
+// - 0 série enregistrée → `deleted_at` (une séance ouverte par erreur n'est
+//   pas un entraînement, elle ne doit pas peupler l'historique/les stats de
+//   streak).
+// - au moins 1 série → `completed_at`, à l'horodatage de la DERNIÈRE
+//   activité réelle (jamais `now()`, voir `lastActivityAt`).
+//
+// Écrit via `.update()` : bump automatique de `updated_at` (WatermelonDB),
+// donc repris par le prochain push comme n'importe quelle autre
+// modification — sans ça, l'appareil qui ferme la séance divergerait
+// durablement de l'autre, qui continuerait à la voir "en cours".
+async function closeOrDiscardWorkout(workout: Workout): Promise<void> {
+  const [setCount, activityAt] = await Promise.all([
+    activeSetCount(workout.id),
+    lastActivityAt(workout),
+  ]);
+  await database.write(async () => {
+    await workout.update((row) => {
+      if (setCount === 0) {
+        row.deletedAt = activityAt;
+      } else {
+        row.completedAt = activityAt;
+      }
+    });
+  });
+}
+
+// Une séance de musculation dépasse rarement 1-2h ; au-delà, une séance
+// restée ouverte n'est pas "en pause", elle a été oubliée (décision
+// utilisateur 2026-08-02). Volontairement plus généreux que la durée
+// typique pour ne jamais fermer une vraie séance en cours (repos longs,
+// pauses).
+const STALE_OPEN_WORKOUT_MS = 6 * 60 * 60 * 1000;
+
+// Un seul profil ne doit avoir qu'UNE séance "en cours" à la fois — invariant
+// produit posé le 2026-08-02 après qu'un pull tardif entre deux appareils du
+// même compte ait laissé deux séances ouvertes en parallèle, chacune
+// invisible pour l'autre appareil. Le pull bloquant avant création
+// (`pullBeforeCreatingWorkout`) réduit la fréquence de ce cas ; ceci est le
+// filet de sécurité pour quand il se produit quand même (ex. les deux
+// appareils étaient hors ligne au même moment — inévitable en offline-first).
+//
+// Priorité : `updated_at` desc — la séance la plus RÉCEMMENT TOUCHÉE gagne et
+// reste "en cours". Les autres sont fermées (jamais fusionnées, jamais
+// supprimées sans trace) via `closeOrDiscardWorkout`, donc toujours
+// consultables dans l'historique — aucune perte perçue, seulement une
+// re-catégorisation "en cours" → "terminée".
+async function reconcileOpenWorkouts(profileId: string): Promise<void> {
+  const openWorkouts = await database
+    .get<Workout>('workouts')
+    .query(
+      Q.where('profile_id', profileId),
+      Q.where('completed_at', null),
+      Q.where('deleted_at', null),
+      Q.sortBy('updated_at', Q.desc),
+    )
+    .fetch();
+
+  if (openWorkouts.length === 0) return;
+
+  const [winner, ...losers] = openWorkouts;
+  for (const loser of losers) {
+    await closeOrDiscardWorkout(loser);
+  }
+
+  const winnerActivity = await lastActivityAt(winner);
+  if (Date.now() - winnerActivity.getTime() > STALE_OPEN_WORKOUT_MS) {
+    await closeOrDiscardWorkout(winner);
+  }
 }
 
 async function loadView(): Promise<ActiveWorkoutView | null> {
@@ -158,6 +296,21 @@ export function useActiveWorkout() {
     try {
       setError(null);
       await work();
+      // Point de branchement UNIQUE de la sync sur les mutations
+      // utilisateur : toutes passent par ici, donc aucune ne peut être
+      // oubliée. Après un `work()` réussi seulement — jamais dans le
+      // `catch`, où il n'y a rien à pousser.
+      //
+      // ⚠️ Surtout PAS dans l'observateur `withChangesForTables` plus bas :
+      // la sync écrit elle-même dans ces tables en appliquant un pull, ce
+      // qui déclencherait un push, donc un pull, donc une écriture... en
+      // boucle infinie. Le déclencheur se pose sur l'intention de
+      // l'utilisateur, pas sur le changement de données.
+      //
+      // Défaut 'structural' délibéré : un contexte oublié dans la table
+      // ci-dessous sera trop rapide plutôt que muet. Une régression de coût
+      // se voit dans les logs, une régression de latence non.
+      requestSync(SYNC_REASON_BY_CONTEXT[context] ?? 'structural');
     } catch (caught) {
       Sentry.captureException(caught, { extra: { context } });
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -201,6 +354,11 @@ export function useActiveWorkout() {
     // session, la séance ne peut pas être rattachée à un profil, et
     // l'utilisateur doit le savoir immédiatement.
     if (!profileId) throw new Error('Aucune session : impossible de créer la séance.');
+
+    // Prévention (best-effort, borné) puis filet de sécurité — voir les
+    // commentaires de `pullBeforeCreatingWorkout` et `reconcileOpenWorkouts`.
+    await pullBeforeCreatingWorkout();
+    await reconcileOpenWorkouts(profileId);
 
     const existing = await findOpenWorkout(profileId);
     if (existing) return existing;

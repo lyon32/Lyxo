@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Q } from '@nozbe/watermelondb';
 
 import { database } from '../../db/index';
@@ -186,11 +187,99 @@ export async function fetchChangedRows(
     .fetch();
   const deletedRows = await collection.query(Q.where('deleted_at', Q.gt(sinceEpochMs))).fetch();
 
+  const echo = await loadPullEcho();
   const toPush = toPushMapper(table);
   return {
-    created: changedRows.map((row) => toPush(row)),
+    created: changedRows
+      .filter(
+        (row) => !isPullEcho(echo, table, row.id, (row as unknown as { updatedAt: Date | null }).updatedAt),
+      )
+      .map((row) => toPush(row)),
     deletedLocalIds: deletedRows.map((row) => row.id),
   };
+}
+
+// --- anti-écho push ----------------------------------------------------------
+// `fetchChangedRows` sélectionne `updated_at > checkpoint`, où le checkpoint
+// est pris sur l'horloge DE L'APPAREIL (`Date.now()`, engine.ts) — alors
+// qu'une ligne tirée du serveur est écrite avec l'`updated_at` DU SERVEUR
+// (`buildRawFromPulledRow` ci-dessous). Si l'horloge serveur est en avance
+// sur celle du téléphone, toute ligne tout juste pull-ée repasse le filtre
+// et repart en push au cycle suivant — que l'autre appareil re-tire, etc.
+//
+// À la minuterie de 3 min c'était invisible. Avec le push après écriture et
+// la cadence rapide (2026-08-01), ce serait un ping-pong permanent entre
+// deux appareils, en data et en batterie, sur un parc à réseau mesuré.
+//
+// On mémorise donc, pour chaque ligne appliquée par un pull, l'`updated_at`
+// exact qu'on lui a écrit, et on l'exclut du push tant qu'elle porte
+// EXACTEMENT cette valeur.
+//
+// ⚠️ L'égalité STRICTE est le cœur de la sécurité de ce mécanisme : dès que
+// l'utilisateur modifie la ligne, WatermelonDB écrit un `updated_at`
+// différent et elle repart normalement. Ne jamais remplacer ça par un
+// drapeau « ne pas repousser ce qui vient du pull » : ce serait plus simple
+// et ça perdrait des écritures utilisateur.
+const PULL_ECHO_KEY = 'lyxo-sync-pull-echo';
+type PullEchoMap = Record<string, number>;
+let pullEchoCache: PullEchoMap | null = null;
+
+function echoKey(table: SyncTableName, localId: string): string {
+  return `${table}:${localId}`;
+}
+
+async function loadPullEcho(): Promise<PullEchoMap> {
+  if (pullEchoCache) return pullEchoCache;
+  const raw = await AsyncStorage.getItem(PULL_ECHO_KEY);
+  let parsed: PullEchoMap = {};
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw) as PullEchoMap;
+    } catch {
+      // Entrée corrompue : repartir vide. Le pire cas est un écho unique,
+      // jamais une perte de donnée.
+      parsed = {};
+    }
+  }
+  pullEchoCache = parsed;
+  return parsed;
+}
+
+function isPullEcho(
+  echo: PullEchoMap,
+  table: SyncTableName,
+  localId: string,
+  updatedAt: Date | null,
+): boolean {
+  if (!updatedAt) return false;
+  return echo[echoKey(table, localId)] === updatedAt.getTime();
+}
+
+// Appelé après qu'un pull a écrit ses lignes en base.
+export async function rememberPulledRows(
+  table: SyncTableName,
+  rows: { localId: string; updatedAtMs: number }[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  const echo = await loadPullEcho();
+  for (const row of rows) echo[echoKey(table, row.localId)] = row.updatedAtMs;
+  await AsyncStorage.setItem(PULL_ECHO_KEY, JSON.stringify(echo));
+}
+
+// Purge après avancée du checkpoint de push : une entrée dont l'`updated_at`
+// est déjà couvert par le checkpoint ne peut plus être sélectionnée par
+// `fetchChangedRows`, elle ne sert donc plus à rien. C'est ce qui borne la
+// taille de la table en mémoire comme en AsyncStorage.
+export async function prunePullEcho(pushedUpToEpochMs: number): Promise<void> {
+  const echo = await loadPullEcho();
+  let removed = 0;
+  for (const [key, updatedAtMs] of Object.entries(echo)) {
+    if (updatedAtMs <= pushedUpToEpochMs) {
+      delete echo[key];
+      removed += 1;
+    }
+  }
+  if (removed > 0) await AsyncStorage.setItem(PULL_ECHO_KEY, JSON.stringify(echo));
 }
 
 // Construit le "dirty raw" WatermelonDB (colonnes brutes, epoch ms) d'une
