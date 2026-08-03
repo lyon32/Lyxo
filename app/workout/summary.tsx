@@ -34,6 +34,12 @@ export default function WorkoutSummaryScreen() {
   const locale: Locale = i18n.language === 'en' ? 'en' : 'fr';
   const router = useRouter();
 
+  // ⚠️ `summary` est RÉACTIF depuis le 2026-08-01 : une sync qui écrit dans
+  // `workouts`/`workout_exercises`/`sets`/`personal_records` produit un nouvel
+  // objet, même à valeurs identiques. Ne jamais brancher un `useEffect` sur
+  // `summary` (confettis, haptique, analytics "résumé vu") — il se
+  // redéclencherait à chaque émission de sync. Ces effets se posent au montage
+  // ou sur une valeur primitive stable, pas sur l'objet.
   const { summary, ready } = useWorkoutSummary(id ?? null);
   const exercises = useExercisesStore((s) => s.exercises);
   const exercisesById = useMemo(

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Q } from '@nozbe/watermelondb';
+import * as Sentry from '@sentry/react-native';
 
 import { database } from './index';
 import type { PersonalRecord } from './models/PersonalRecord';
@@ -121,12 +122,50 @@ export function useWorkoutSummary(workoutId: string | null) {
   useEffect(() => {
     if (!workoutId) return;
     let cancelled = false;
-    loadSummary(workoutId).then((next) => {
-      if (cancelled) return;
-      setState({ loadedForId: workoutId, summary: next });
-    });
+
+    // Les QUATRE tables lues par `loadSummary` sont dans `SYNC_TABLES`
+    // (lib/sync/tables.ts) : une sync peut donc les écrire pendant que cet
+    // écran est ouvert — et c'est un écran terminal, sur lequel
+    // l'utilisateur reste. Avant ce passage en réactif, un PR calculé sur un
+    // second appareil arrivait en base sans jamais s'afficher.
+    //
+    // `withChangesForTables` émet immédiatement (`startWith(null)`), donc ce
+    // seul callback couvre aussi le chargement initial — pas de `setState`
+    // synchrone dans le corps de l'effet (même raison qu'en tête de fichier).
+    //
+    // ⚠️ Observateur en LECTURE SEULE. Ne jamais y brancher d'écriture ni de
+    // `requestSync` : la sync écrit elle-même dans ces tables en appliquant
+    // un pull, ce qui boucle à l'infini (contrainte détaillée dans
+    // `use-active-workout.ts`).
+    //
+    // Pas de coalescing : un pull touchant les 4 tables émet jusqu'à 4 fois,
+    // soit ≤20 lectures SQLite indexées sur UNE séance — de l'ordre de la
+    // milliseconde. À revisiter seulement si cet écran devient atteignable
+    // pendant une PREMIÈRE sync (import massif d'historique) ; aujourd'hui on
+    // n'y arrive qu'après avoir terminé une séance.
+    const subscription = database
+      .withChangesForTables(['workouts', 'workout_exercises', 'sets', 'personal_records'])
+      .subscribe(() => {
+        if (cancelled) return;
+        loadSummary(workoutId)
+          .then((next) => {
+            if (cancelled) return;
+            setState({ loadedForId: workoutId, summary: next });
+          })
+          .catch((error: unknown) => {
+            // `loadSummary` commence par un `.find()` qui REJETTE si la ligne
+            // n'existe pas. Sans ce catch : spinner infini au montage, et en
+            // réactif d'anciennes données figées à l'écran plus une promesse
+            // rejetée non gérée. On retombe sur l'écran nu "Terminer".
+            if (cancelled) return;
+            Sentry.captureException(error, { extra: { context: 'workout_summary_load', workoutId } });
+            setState({ loadedForId: workoutId, summary: null });
+          });
+      });
+
     return () => {
       cancelled = true;
+      subscription.unsubscribe();
     };
   }, [workoutId]);
 
