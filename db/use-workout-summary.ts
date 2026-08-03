@@ -8,6 +8,7 @@ import type { Workout } from './models/Workout';
 import type { WorkoutExercise } from './models/WorkoutExercise';
 import type { WorkoutSet } from './models/WorkoutSet';
 import type { CelebratedPR } from './pr-recording';
+import { personalRecordToSessionPR } from '../lib/pr-display';
 
 // Données du résumé peak-end (ROADMAP 2.11, LYXO_UI_PROMPT §5bis) : volume
 // total + delta vs la séance précédente, stats compactes, PR de la séance.
@@ -87,25 +88,32 @@ async function loadSummary(workoutId: string): Promise<WorkoutSummaryView | null
     previousVolumeKg,
     setsCount: sets.length,
     exercisesCount: workoutExercises.length,
-    prs: records.map((record) => ({
-      exerciseId: record.exerciseId,
-      type: record.prType,
-      value:
-        record.prType === 'reps'
-          ? record.reps
-          : record.prType === 'volume'
-            ? record.weightKg * record.reps
-            : record.prType === '1rm'
-              ? (record.estimated1RmKg ?? record.weightKg)
-              : record.weightKg,
-      // Le "record battu" n'est pas reconstruit ici (nécessiterait de rejouer
-      // l'historique) : le résumé de séance affiche la valeur atteinte, pas
-      // le delta — seule la carte de célébration (2.10), affichée au moment
-      // exact du record, porte le delta.
-      previousBest: null,
-      isSocialEligible: record.isSocialEligible,
-      ineligibilityReason: record.ineligibilityReason,
-    })),
+    // ⚠️ RÉVISION 2026-08-03 — `previousBest` était codé en dur à `null` ici,
+    // au motif qu'il aurait fallu rejouer l'historique pour le reconstruire.
+    // Il n'y a plus rien à rejouer : la valeur est désormais PERSISTÉE sur la
+    // ligne (`previous_best`, schéma v4), figée au moment de l'exploit par
+    // `pr-recording.ts` à partir de `detectPRs` — qui la calculait déjà et la
+    // jetait. Le résumé porte donc le delta, comme la carte de célébration.
+    //
+    // La reconstruire à la lecture aurait été FAUX, pas seulement coûteux :
+    // l'historique des séries est mutable (édition, soft-delete), donc une
+    // série corrigée aujourd'hui changerait rétroactivement les deltas de
+    // résumés déjà consultés.
+    //
+    // Le mapping vit dans `lib/pr-display.ts` : ce hook n'est pas testable
+    // (pas d'infra de test WatermelonDB dans le repo), la fonction pure l'est.
+    prs: records.map((record) =>
+      personalRecordToSessionPR({
+        exerciseId: record.exerciseId,
+        prType: record.prType,
+        weightKg: record.weightKg,
+        reps: record.reps,
+        estimated1RmKg: record.estimated1RmKg,
+        previousBest: record.previousBest,
+        isSocialEligible: record.isSocialEligible,
+        ineligibilityReason: record.ineligibilityReason,
+      }),
+    ),
   };
 }
 

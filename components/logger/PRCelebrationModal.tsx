@@ -2,6 +2,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { CelebratedPR } from '../../db/pr-recording';
+import { prDeltaLabel } from '../../lib/pr-display';
 import { formatWeight, type Locale, type WeightUnit } from '../../lib/units';
 
 // Célébration PR — LYXO_UI_PROMPT §7, ROADMAP 2.10. "the shareable PR card
@@ -41,12 +42,10 @@ function badgeKey(type: CelebratedPR['type']): string {
   return `workout.pr.badge_${type}`;
 }
 
-function deltaLabel(pr: CelebratedPR, unit: WeightUnit, locale: Locale): string | null {
-  if (pr.previousBest === null) return null;
-  const delta = pr.value - pr.previousBest;
-  if (delta <= 0) return null;
-  return pr.type === 'reps' ? `+${Math.round(delta)}` : `+${formatWeight(delta, unit, locale)}`;
-}
+// `deltaLabel` vivait ici en privé, donc couverte par aucun test. Déplacée
+// dans `lib/pr-display.ts` (`prDeltaLabel`) le 2026-08-03 : le bloc Records
+// du résumé affiche désormais le même delta, et deux implémentations
+// divergeraient tôt ou tard sur ce que vaut une progression.
 
 // Une carte par type de PR battu — un même set peut en battre plusieurs
 // (ex: poids max ET 1RM estimé).
@@ -72,7 +71,7 @@ export function PRCard({
   locale: Locale;
 }) {
   const { t } = useTranslation();
-  const delta = deltaLabel(pr, unit, locale);
+  const delta = prDeltaLabel(pr, unit, locale);
   const showExerciseAsTitle = pr.type === 'weight';
 
   return (

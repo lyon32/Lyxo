@@ -842,10 +842,25 @@ Contenu **ancré en haut**, jamais centré verticalement (§6.0).
 > le résumé est le moment *end* (toute la séance, contexte à établir). Les
 > faire diverger est délibéré.
 >
-> Condition de revisite : si `use-workout-summary.ts` remonte un jour un vrai
-> `previousBest`, une carte vedette redevient défendable — une grande carte
-> se justifie quand elle raconte « 15 kg, +2,5 kg depuis ton dernier
-> record », pas quand elle affiche « 15 kg ».
+> ✅ **Condition levée le 2026-08-03 : le delta est affiché.** La colonne
+> `previous_best` (DATA_MODEL §2.8, schéma local v4) porte le record précédent,
+> figé à l'écriture par `pr-recording.ts` — la valeur était déjà calculée par
+> `detectPRs` puis jetée. Chaque ligne du bloc Records affiche donc « +2,5 kg »
+> à droite de la valeur, en ember, comme la carte de célébration.
+>
+> Deux décisions à ne pas rouvrir :
+> 1. **Valeur LUE, jamais reconstruite.** Recalculer à la lecture ferait varier
+>    rétroactivement les deltas de résumés déjà consultés dès qu'une série est
+>    éditée ou soft-deletée — et coûterait (exercices × types × 4) requêtes par
+>    cycle, le hook étant rejoué à chaque émission de `withChangesForTables`.
+> 2. **Rien n'est affiché quand `previous_best` est `null`** (premier record, ou
+>    ligne antérieure à la migration). Pas de badge « 1er record » : sur un
+>    compte neuf toutes les lignes en porteraient un, ce qui recréerait le mur
+>    que cette refonte a supprimé.
+>
+> La carte vedette (variante écartée) redeviendrait défendable maintenant que
+> le delta existe — mais le format compact reste préférable tant que le bloc
+> doit tenir plusieurs exercices.
 
 ⚠️ Cette section disait à l'origine « minimal, pas de récapitulatif — un
 choix, pas un oubli » ; corrigé le 2026-07-30 pour ne plus contredire

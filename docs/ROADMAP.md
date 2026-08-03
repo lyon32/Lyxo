@@ -516,6 +516,12 @@
   cartes empilées sont remplacées par un bloc "Records" groupé par exercice**
   (`components/workout/PRSummaryBlock.tsx`) et la stat row par une grille 2
   colonnes au format LLD §6.0 — détail et justification en LLD.md §6.5bis.
+  ⚠️ **AMENDÉ à nouveau le 2026-08-03 : le résumé affiche la PROGRESSION**
+  (« +2,5 kg ») grâce à la colonne `previous_best` (migration
+  `20260803150000`, schéma local v4). La valeur était déjà calculée par
+  `detectPRs` puis jetée ; elle est désormais figée sur la ligne. Voir
+  DATA_MODEL §2.8 pour la sémantique du `null` et l'ordre de déploiement
+  obligatoire (Postgres → backend → client, le zod du push n'étant pas strict).
   `PRCard` n'est plus utilisée ici, seulement par la modale de célébration,
   "Partager en story" (feuille OS,
   même limite qu'en 2.10) + "Terminer". Nouveaux fichiers :
@@ -575,6 +581,14 @@
   `tsc`/`eslint`/52 tests restent propres après les 4 fixes.
 
 ## PHASE 3 — SYNC (Bloc C — le socle, jamais compressé)
+
+**Migration `20260803150000_add_previous_best_to_personal_records` appliquée
+le 2026-08-03** — colonne `previous_best` + index `idx_pr_set` (la FK sans
+index signalée le 2026-07-31). Schéma WatermelonDB local passé en **v4**
+(`db/migrations.ts`, step `addColumns`). Ordre respecté : Postgres, puis
+backend (zod `created` ET `updated`, insert, types régénérés), puis client —
+inverser aurait perdu des données en silence, le zod du push n'étant pas en
+mode strict. Aucun backfill des lignes existantes, volontairement.
 
 **Migrations 2.10/3.1-3.6 appliquées sur la base `lyxo` réelle le
 2026-08-01**, débloquant 3.7. Avant l'application, `supabase migration

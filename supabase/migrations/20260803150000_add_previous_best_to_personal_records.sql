@@ -1,0 +1,40 @@
+-- Progression d'un record — DATA_MODEL.md §2.8, LLD.md §6.5bis.
+--
+-- L'écran de résumé affichait « 15 kg » nu. Sans le record précédent, un PR
+-- n'est qu'un nombre. Or la valeur EXISTAIT déjà : `detectPRs`
+-- (lib/pr-detection.ts) la renvoie pour les quatre types, et `recordSetPRs`
+-- la recevait sans jamais l'écrire — elle ne survivait qu'en mémoire, le
+-- temps d'afficher la modale de célébration. Cette colonne arrête de la
+-- perdre ; il n'y a rien à recalculer.
+--
+-- ⚠️ FAIT HISTORIQUE FIGÉ, jamais recalculé — même statut que
+-- `is_social_eligible`, et pour la même raison : l'historique des séries est
+-- mutable (édition, soft-delete). Reconstruire cette valeur à la lecture
+-- ferait varier rétroactivement les deltas de résumés déjà consultés par
+-- l'utilisateur — une réécriture d'histoire visible, pas une imprécision.
+--
+-- ⚠️ PAS de suffixe d'unité, contrairement à `weight_kg` / `estimated_1rm_kg`
+-- / `total_volume_kg`. L'unité dépend de `pr_type` : kg pour 'weight',
+-- 'volume' et '1rm', RÉPÉTITIONS pour 'reps'. Un `_kg` serait un mensonge
+-- pour un type sur quatre. Déviation assumée — ne pas « corriger ».
+--
+-- La valeur stockée est celle de `DetectedPR.previousBest`, verbatim : elle
+-- est déjà dérivée et homogène à la valeur affichée du même `pr_type`
+-- (volume ↔ poids × reps, 1rm ↔ 1RM estimé). Ne JAMAIS y mettre le poids
+-- brut de la série précédente pour 'volume'/'1rm' : le delta n'aurait
+-- aucun sens.
+--
+-- ⚠️ NULL = « inconnu », et couvre indistinctement deux cas : un vrai premier
+-- record, et une ligne antérieure à cette migration. Aucun backfill n'a été
+-- fait, volontairement : reconstituer un état passé depuis l'historique
+-- d'aujourd'hui produirait des valeurs qui n'ont jamais existé. Les deux cas
+-- s'affichent pareil (aucun delta), donc rien ne justifie une colonne pour
+-- les distinguer.
+alter table personal_records add column previous_best numeric;
+
+-- Index manquant depuis la création de la table (DATA_MODEL.md §2.8, note du
+-- 2026-07-31 : « à ajouter au prochain passage sur cette table »). C'est ce
+-- passage. `set_id` est la colonne filtrée par le résumé de fin de séance
+-- (`set_id in (...)`, db/use-workout-summary.ts), et Postgres n'indexe pas
+-- automatiquement les clés étrangères.
+create index idx_pr_set on personal_records(set_id);

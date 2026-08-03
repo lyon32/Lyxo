@@ -129,6 +129,7 @@ function personalRecordToPush(row: PersonalRecord): PushPayload {
     pr_type: row.prType,
     is_social_eligible: row.isSocialEligible,
     ineligibility_reason: row.ineligibilityReason,
+    previous_best: row.previousBest,
     achieved_at: toIso(row.achievedAt ? +row.achievedAt : null),
   };
 }
@@ -143,6 +144,10 @@ function applyPersonalRecordRaw(raw: Record<string, unknown>, row: PulledRow) {
   raw.pr_type = row.pr_type;
   raw.is_social_eligible = Boolean(row.is_social_eligible);
   raw.ineligibility_reason = row.ineligibility_reason ?? null;
+  // `?? null` et non `?? 0` : une ligne poussée par un client antérieur au
+  // schéma v4 n'a pas ce champ, et « inconnu » n'est pas « aucune
+  // progression » — un 0 afficherait un delta faux.
+  raw.previous_best = row.previous_best ?? null;
   raw.achieved_at = toEpochMs(row.achieved_at as string) ?? Date.now();
 }
 

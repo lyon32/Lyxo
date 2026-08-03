@@ -154,6 +154,21 @@ export const personalRecordsTableSpec: TableSchemaSpec = {
     { name: 'pr_type', type: 'string' },
     { name: 'is_social_eligible', type: 'boolean' },
     { name: 'ineligibility_reason', type: 'string', isOptional: true },
+    // Record précédent au moment de l'exploit — fait historique FIGÉ, jamais
+    // recalculé (même statut que `is_social_eligible`, et pour la même
+    // raison : l'historique des séries est mutable, le recalculer ferait
+    // varier rétroactivement des deltas déjà affichés).
+    //
+    // ⚠️ PAS de suffixe d'unité, contrairement à `weight_kg` /
+    // `estimated_1rm_kg` : l'unité dépend de `pr_type` — kg pour 'weight',
+    // 'volume' et '1rm', RÉPÉTITIONS pour 'reps'. Un `_kg` serait faux pour
+    // un type sur quatre. Déviation assumée, ne pas « corriger ».
+    //
+    // `null` = inconnu : vrai premier record OU ligne antérieure à la
+    // migration v4 (aucun backfill, volontairement — reconstituer un état
+    // passé depuis l'historique d'aujourd'hui produirait des valeurs qui
+    // n'ont jamais existé).
+    { name: 'previous_best', type: 'number', isOptional: true },
     { name: 'achieved_at', type: 'number' },
     { name: 'deleted_at', type: 'number', isOptional: true },
     { name: 'created_at', type: 'number' },
@@ -172,7 +187,7 @@ export const personalRecordsTableSpec: TableSchemaSpec = {
 // ajouter la migration correspondante dans `db/migrations.ts`. Sans ça, les
 // appareils déjà installés gardent l'ancien schéma en silence.
 export const workoutSchema = appSchema({
-  version: 3,
+  version: 4,
   tables: [
     tableSchema(workoutsTableSpec),
     tableSchema(workoutExercisesTableSpec),

@@ -91,6 +91,18 @@ export class PersonalRecord extends Model {
     this._setRaw('ineligibility_reason', value);
   }
 
+  // Valeur du record précédent AU MOMENT de l'exploit — figée, jamais
+  // recalculée. Unité déterminée par `prType` (kg, sauf 'reps' où ce sont
+  // des répétitions), d'où l'absence de suffixe dans le nom.
+  // `null` = inconnu : premier record, ou ligne créée avant le schéma v4.
+  get previousBest(): number | null {
+    const raw = this._getRaw('previous_best');
+    return typeof raw === 'number' ? raw : null;
+  }
+  set previousBest(value: number | null) {
+    this._setRaw('previous_best', value);
+  }
+
   get achievedAt(): Date | null {
     const raw = this._getRaw('achieved_at');
     return typeof raw === 'number' ? new Date(raw) : null;

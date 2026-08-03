@@ -143,6 +143,11 @@ export async function recordSetPRs(params: {
           row.prType = pr.type;
           row.isSocialEligible = isSocialEligible;
           row.ineligibilityReason = reason;
+          // La valeur était calculée par `detectPRs` puis perdue : elle ne
+          // survivait qu'en mémoire, le temps d'afficher la modale de
+          // célébration. Elle est désormais figée avec la ligne — même
+          // statut que `isSocialEligible`, calculé à partir du même input.
+          row.previousBest = pr.previousBest;
           row.achievedAt = achievedAt;
         }),
       ),

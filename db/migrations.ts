@@ -1,4 +1,4 @@
-import { createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
+import { addColumns, createTable, schemaMigrations } from '@nozbe/watermelondb/Schema/migrations';
 
 import {
   personalRecordsTableSpec,
@@ -35,6 +35,24 @@ export const workoutMigrations = schemaMigrations({
       // v2 → v3 : personal_records (ROADMAP 2.10, DATA_MODEL §2.8).
       toVersion: 3,
       steps: [createTable(personalRecordsTableSpec)],
+    },
+    {
+      // v3 → v4 : `previous_best` sur personal_records — la progression
+      // affichée sur le résumé de fin de séance. La colonne est ajoutée
+      // NULLABLE et sans valeur par défaut : les lignes existantes restent
+      // à `null` (= inconnu), aucun backfill.
+      //
+      // ⚠️ La colonne est ici recopiée à la main plutôt que dérivée de
+      // `personalRecordsTableSpec` : `addColumns` attend les colonnes AJOUTÉES,
+      // alors que la spec décrit désormais la table COMPLÈTE. Passer la spec
+      // entière recréerait toutes les colonnes et échouerait.
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: 'personal_records',
+          columns: [{ name: 'previous_best', type: 'number', isOptional: true }],
+        }),
+      ],
     },
   ],
 });

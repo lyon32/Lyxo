@@ -144,6 +144,7 @@ export type Database = {
           is_social_eligible: boolean
           local_id: string
           pr_type: string
+          previous_best: number | null
           profile_id: string
           reps: number
           set_id: string | null
@@ -161,6 +162,7 @@ export type Database = {
           is_social_eligible?: boolean
           local_id: string
           pr_type: string
+          previous_best?: number | null
           profile_id: string
           reps: number
           set_id?: string | null
@@ -178,6 +180,7 @@ export type Database = {
           is_social_eligible?: boolean
           local_id?: string
           pr_type?: string
+          previous_best?: number | null
           profile_id?: string
           reps?: number
           set_id?: string | null

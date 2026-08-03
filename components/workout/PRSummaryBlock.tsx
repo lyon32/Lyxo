@@ -4,8 +4,24 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react-native';
 
 import type { SessionPR } from '../../db/use-workout-summary';
+import { prDeltaLabel } from '../../lib/pr-display';
 import { formatWeight, type Locale, type WeightUnit } from '../../lib/units';
 import { groupPRsByExercise } from '../../lib/workout-summary';
+
+// Libellé accessible d'une ligne de record : type, valeur, et la progression
+// en toutes lettres. La phrase complète n'existe QUE ici — à l'écran, le
+// delta est réduit à "+2,5 kg" faute de place.
+function buildRowLabel(
+  pr: SessionPR,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  unit: WeightUnit,
+  locale: Locale,
+): string {
+  const value = pr.type === 'reps' ? `${pr.value}` : formatWeight(pr.value, unit, locale);
+  const delta = prDeltaLabel(pr, unit, locale);
+  const base = `${t(`workout.pr.badge_${pr.type}`)}, ${value}`;
+  return delta ? `${base}, ${t('workout.summary.prs_delta_a11y', { delta })}` : base;
+}
 
 // Bloc "Records" du résumé de fin de séance — refonte du 2026-08-03.
 //
@@ -14,13 +30,16 @@ import { groupPRsByExercise } from '../../lib/workout-summary';
 // un record, plein écran) et ne l'était pas ici (moment "end" : toute la
 // séance d'un coup d'œil). Deux raisons concrètes :
 //
-// 1. Une `PRCard` sur cet écran est presque vide. Son delta ne s'affiche que
-//    si `previousBest` est renseigné (`PRCelebrationModal.deltaLabel`), or
-//    `use-workout-summary.ts` le code en dur à `null` — la carte se réduit
-//    donc à un badge et un chiffre dans une boîte de ~160 px.
-// 2. Le nom de l'exercice y est perdu : `PRCard` ne l'affiche que pour
+// 1. Le nom de l'exercice y est perdu : `PRCard` ne l'affiche que pour
 //    `pr.type === 'weight'`. Sur une séance à plusieurs exercices, les autres
-//    records ne disaient pas d'où ils venaient.
+//    records ne disaient pas d'où ils venaient. C'est l'argument qui tient
+//    toujours et qui justifie à lui seul de ne pas revenir à `PRCard`.
+// 2. ⚠️ PRÉMISSE PÉRIMÉE, conservée pour mémoire : la refonte invoquait aussi
+//    le fait qu'une `PRCard` était presque vide, son delta ne s'affichant que
+//    si `previousBest` était renseigné — or il était codé en dur à `null`.
+//    Depuis le 2026-08-03, `previous_best` est persisté (schéma v4) et le
+//    delta s'affiche ici comme dans la modale. Cet argument ne vaut donc
+//    plus ; le premier suffit.
 //
 // ⚠️ `PRCard` reste inchangée et reste utilisée par la modale : les deux
 // écrans ont des intentions différentes, les faire diverger est plus honnête
@@ -113,7 +132,13 @@ export function PRSummaryBlock({
                     // exercice (deux séries distinctes) : l'index complète
                     // la clé.
                     key={`${pr.type}-${index}`}
-                    className="flex-row items-center gap-3 px-4 pb-2.5"
+                    // Ligne groupée pour les lecteurs d'écran : sans ça, les
+                    // trois `Text` sont annoncés séparément et le delta perd
+                    // son sens. C'est ici, et seulement ici, qu'on écrit la
+                    // phrase complète — à l'écran elle ne tiendrait pas.
+                    accessible
+                    accessibilityLabel={buildRowLabel(pr, t, unit, locale)}
+                    className="flex-row items-baseline gap-3 px-4 pb-2.5"
                   >
                     <Text className="flex-1 text-xs uppercase tracking-wider text-ember">
                       {t(`workout.pr.badge_${pr.type}`)}
@@ -121,6 +146,17 @@ export function PRSummaryBlock({
                     <Text className="font-inter-bold text-lg text-fg">
                       {pr.type === 'reps' ? `${pr.value}` : formatWeight(pr.value, unit, locale)}
                     </Text>
+                    {/* Delta seul ("+2,5 kg"), jamais la phrase complète : la
+                        ligne fait déjà trois colonnes sous un nom d'exercice
+                        tronqué. Rien du tout quand `previousBest` est inconnu
+                        — pas de badge "1er record", qui couvrirait TOUTES les
+                        lignes d'un compte neuf et recréerait le mur que cette
+                        refonte a supprimé. */}
+                    {prDeltaLabel(pr, unit, locale) ? (
+                      <Text className="font-inter-semibold text-xs text-ember">
+                        {prDeltaLabel(pr, unit, locale)}
+                      </Text>
+                    ) : null}
                   </View>
                 ))
               : null}

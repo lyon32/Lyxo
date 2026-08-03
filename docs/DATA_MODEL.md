@@ -323,6 +323,10 @@ create table personal_records (
   pr_type text not null check (pr_type in ('weight','volume','reps','1rm')),
   is_social_eligible boolean not null default true,  -- anti-triche §18.1
   ineligibility_reason text,          -- 'implausible_weight' | 'delta_too_high' | 'insufficient_history'
+  previous_best numeric,              -- AJOUTÉ 2026-08-03 : record précédent au
+                                       -- moment de l'exploit, figé. Unité selon
+                                       -- pr_type (kg, sauf 'reps') — d'où
+                                       -- l'absence de suffixe. Voir note ci-dessous.
   achieved_at timestamptz not null,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
@@ -330,17 +334,43 @@ create table personal_records (
 );
 create index idx_pr_profile_exercise on personal_records(profile_id, exercise_id);
 create unique index uq_personal_record_local on personal_records(profile_id, local_id);  -- idempotence sync
+create index idx_pr_set on personal_records(set_id);  -- FK, ajouté 2026-08-03
 -- Règle applicative (§18.1) : is_social_eligible = false si
 --   weight_kg > 4 × body_weight OU delta > +15% vs précédent PR
 --   OU < 3 séances loggées sur l'exercice
 ```
-⚠️ **Manque un index sur `set_id`** (trouvé le 2026-07-31, pas encore
-corrigé) : c'est une FK sans index — Postgres n'indexe jamais
-automatiquement une clé étrangère. Ralentit les jointures et élargit les
-verrous pris lors d'un `delete`/soft-delete côté `sets`. Volume faible
-aujourd'hui (table vide), pas urgent, mais à ajouter (`create index
-idx_pr_set on personal_records(set_id)`) au prochain passage sur cette
-table plutôt que d'attendre un signal de lenteur.
+✅ **Index sur `set_id` livré le 2026-08-03**
+(`20260803150000_add_previous_best_to_personal_records.sql`), au « prochain
+passage sur cette table » que la note du 2026-07-31 appelait. C'était une FK
+sans index — Postgres n'en crée jamais automatiquement — et c'est justement
+la colonne que filtre le résumé de fin de séance (`set_id in (...)`).
+
+⚠️ **`previous_best` est un FAIT HISTORIQUE FIGÉ** (ajouté le 2026-08-03,
+schéma local v4) : la valeur du record précédent AU MOMENT de l'exploit,
+écrite une fois par `db/pr-recording.ts` depuis `detectPRs` — qui la
+calculait déjà et la jetait. Même statut que `is_social_eligible`, et pour
+la même raison : l'historique des séries est mutable (édition,
+soft-delete), donc la recalculer à la lecture ferait varier
+rétroactivement des deltas déjà affichés à l'utilisateur. Jamais recalculée.
+
+- **Unité déterminée par `pr_type`** : kg pour `weight`, `volume` et `1rm`,
+  RÉPÉTITIONS pour `reps`. D'où l'absence de suffixe `_kg`, contrairement à
+  `weight_kg` / `estimated_1rm_kg` — il serait faux pour un type sur quatre.
+  Déviation de convention assumée, ne pas « corriger ».
+- La valeur stockée est celle de `DetectedPR.previousBest` verbatim, déjà
+  homogène à la valeur affichée du même type. **Ne jamais y mettre le poids
+  brut de la série précédente** pour `volume`/`1rm` : le delta serait
+  dénué de sens.
+- **`null` = inconnu**, indistinctement « vrai premier record » et « ligne
+  antérieure au 2026-08-03 ». **Aucun backfill n'a été fait, volontairement** :
+  reconstituer un état passé depuis l'historique d'aujourd'hui produirait des
+  valeurs qui n'ont jamais existé. Les deux cas s'affichent pareil (aucun
+  delta), donc rien ne justifie une colonne pour les distinguer.
+- ⚠️ **Ordre de déploiement d'une colonne sur cette table** : Postgres, puis
+  backend, puis client. Le schéma zod de `/v1/sync/push` n'est PAS en mode
+  strict — un client qui pousserait un champ inconnu du serveur le verrait
+  supprimé silencieusement, avec un `200` en réponse et le checkpoint avancé :
+  la valeur serait perdue définitivement, sans erreur ni log.
 RLS (audit doc #23, defense-in-depth) : écriture réservée à
 `profile_id = auth.uid()`. Lecture : soi-même toujours ; pour les
 tiers (leaderboard), uniquement les lignes `is_social_eligible = true`

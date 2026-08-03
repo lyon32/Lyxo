@@ -460,6 +460,11 @@ const personalRecordsChangeSchema = z
             .enum(['implausible_weight', 'delta_too_high', 'insufficient_history'])
             .nullable()
             .optional(),
+          // Record précédent au moment de l'exploit — unité déterminée par
+          // `pr_type` (kg sauf pour 'reps'), d'où l'absence de suffixe.
+          // `optional()` : les clients antérieurs au schéma local v4 ne
+          // l'envoient pas, ils écrivent alors `null`.
+          previous_best: z.number().nullable().optional(),
           achieved_at: z.string(),
         }),
       )
@@ -473,6 +478,13 @@ const personalRecordsChangeSchema = z
             .enum(['implausible_weight', 'delta_too_high', 'insufficient_history'])
             .nullable()
             .optional(),
+          // ⚠️ Doit figurer ICI AUSSI : le chemin `updated` applique un
+          // `...patch` (voir plus bas), donc un champ absent de ce schéma
+          // serait silencieusement supprimé par zod — qui n'est PAS en mode
+          // strict sur ce endpoint — au lieu de lever une erreur. Les PR ne
+          // sont pas modifiés localement aujourd'hui, mais l'asymétrie
+          // serait un piège.
+          previous_best: z.number().nullable().optional(),
         }),
       )
       .default([]),
@@ -771,6 +783,7 @@ syncRouter.post(
               pr_type: item.pr_type,
               is_social_eligible: item.is_social_eligible,
               ineligibility_reason: item.ineligibility_reason ?? null,
+              previous_best: item.previous_best ?? null,
               achieved_at: item.achieved_at,
             });
           }

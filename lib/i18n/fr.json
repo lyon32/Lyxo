@@ -330,6 +330,7 @@
       "prs_count_other": "{{count}} records sur {{exercises}} exercices",
       "prs_group_count_one": "{{count}} record",
       "prs_group_count_other": "{{count}} records",
+      "prs_delta_a11y": "{{delta}} depuis ton dernier record",
       "prs_private_all": "Ces records ne sont visibles que dans tes stats perso.",
       "prs_private_some": "Certains de ces records ne sont visibles que dans tes stats perso.",
       "finish": "Terminer",
