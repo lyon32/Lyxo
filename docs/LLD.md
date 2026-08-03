@@ -795,10 +795,60 @@ dans le détail workout que si elle a été postée.
 
 **Écran de fin de séance : version riche de LYXO_UI_PROMPT.md §5bis**
 (effet peak-end, ROADMAP 2.11, décidé le 2026-07-30) — hero volume total +
-delta vs la séance précédente, jour nommé, stat row durée/séries/exercices,
-cartes PR de la séance empilées, CTA "Partager en story" + ghost
-"Terminer". ⚠️ Cette section disait auparavant l'inverse ("minimal, pas de
-récapitulatif — un choix, pas un oubli") ; corrigé pour ne plus contredire
+delta vs la séance précédente, jour nommé, **grille de stats 2 colonnes au
+format §6.0** (durée / séries / exercices / records), **bloc "Records"
+groupé par exercice**, CTA "Partager en story" + ghost "Terminer".
+Contenu **ancré en haut**, jamais centré verticalement (§6.0).
+
+> ⚠️ RÉVISION 2026-08-03 — les records ne sont plus des **cartes empilées**.
+> Cette section, et ROADMAP 2.11, spécifiaient « cartes PR empilées »
+> (`PRCard` réutilisée depuis la modale de célébration). Deux raisons de
+> changer, toutes deux constatées sur appareil :
+> 1. **Chaque carte était presque vide.** `PRCard` n'affiche son delta que
+>    si `previousBest` est renseigné, or `use-workout-summary.ts` le code en
+>    dur à `null` — une carte se réduisait donc à un badge et un chiffre
+>    dans une boîte de ~160 px. Une séance battant 4 types sur 3 exercices
+>    produisait 12 cartes, soit ~800 px de défilement.
+> 2. **Le nom de l'exercice était perdu** : `PRCard` ne l'affiche que pour
+>    `pr.type === 'weight'`. Les autres records ne disaient pas d'où ils
+>    venaient.
+>
+> Nouveau format (`components/workout/PRSummaryBlock.tsx`) : un seul
+> conteneur, **groupé par exercice** — le nom en en-tête de groupe, puis une
+> ligne `type → valeur` par record. Le nom n'est plus répété, et il est
+> affiché pour TOUS les types. Regroupement par `groupPRsByExercise`
+> (`lib/workout-summary.ts`, testé), qui conserve l'ordre d'apparition des
+> exercices dans la séance plutôt qu'un tri.
+>
+> **Groupes repliables, premier ouvert** (affinage du 2026-08-03, après test
+> sur appareil) : une séance de 4 exercices battant les 4 types produit
+> 16 lignes — le regroupement supprime la répétition du nom, pas la hauteur.
+> Chaque en-tête est tappable (`min-h-tap`, chevron pivotant). Le premier
+> groupe est ouvert et les autres repliés : tout replier ferait de l'écran de
+> célébration un simple menu sans aucun chiffre visible (le défaut qu'on
+> reprochait à la variante "compteur + feuille"), tout déplier reproduit le
+> mur. Le compteur « N records » de chaque en-tête dit ce qui est caché.
+>
+> **Mention de confidentialité en pied de bloc, jamais par ligne.** Un record
+> non éligible au social (§18.1 : moins de 3 séances sur l'exercice, poids
+> implausible, delta trop élevé) doit rester signalé comme visible en stats
+> perso uniquement (S11/S12 SECURITY_NOTES). Répétée sur chaque ligne, cette
+> mention couvrait les 16 lignes d'une séance de test — elle est donc affichée
+> une seule fois sous le bloc, avec deux formulations distinctes selon que
+> TOUS les records sont concernés ou seulement certains.
+>
+> ⚠️ `PRCard` **reste inchangée** et reste utilisée par la modale de
+> célébration : elle est le moment *peak* (un exercice, contexte implicite),
+> le résumé est le moment *end* (toute la séance, contexte à établir). Les
+> faire diverger est délibéré.
+>
+> Condition de revisite : si `use-workout-summary.ts` remonte un jour un vrai
+> `previousBest`, une carte vedette redevient défendable — une grande carte
+> se justifie quand elle raconte « 15 kg, +2,5 kg depuis ton dernier
+> record », pas quand elle affiche « 15 kg ».
+
+⚠️ Cette section disait à l'origine « minimal, pas de récapitulatif — un
+choix, pas un oubli » ; corrigé le 2026-07-30 pour ne plus contredire
 `app/workout/summary.tsx`, qui implémente la version riche. L'animation
 "week-strip check" du mockup n'est PAS câblée depuis cet écran : le
 `StreakCalendar` de Home n'est pas encore branché à de vraies données

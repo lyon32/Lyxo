@@ -512,7 +512,12 @@
   LYXO_UI_PROMPT §5bis retenue (décision 2026-07-30, contradiction avec
   LLD.md §6.5bis "minimal" trouvée et corrigée dans le même doc) : hero
   volume + delta vs séance précédente, jour nommé, stat row, cartes PR
-  empilées (réutilise `PRCard` de 2.10), "Partager en story" (feuille OS,
+  empilées (réutilise `PRCard` de 2.10) ⚠️ **AMENDÉ le 2026-08-03 : les
+  cartes empilées sont remplacées par un bloc "Records" groupé par exercice**
+  (`components/workout/PRSummaryBlock.tsx`) et la stat row par une grille 2
+  colonnes au format LLD §6.0 — détail et justification en LLD.md §6.5bis.
+  `PRCard` n'est plus utilisée ici, seulement par la modale de célébration,
+  "Partager en story" (feuille OS,
   même limite qu'en 2.10) + "Terminer". Nouveaux fichiers :
   `app/workout/summary.tsx`, `db/use-workout-summary.ts`,
   `lib/workout-summary.ts` (+ tests). `finishWorkout()` ajouté à

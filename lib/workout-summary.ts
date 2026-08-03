@@ -29,3 +29,35 @@ export function volumeDeltaKg(totalVolumeKg: number, previousVolumeKg: number | 
   if (previousVolumeKg === null) return null;
   return totalVolumeKg - previousVolumeKg;
 }
+
+// Regroupement des records PAR EXERCICE — refonte du 2026-08-03.
+//
+// Avant : une grande carte par record, empilées. Une séance battant 4 types
+// sur un même exercice affichait donc son nom quatre fois d'affilée, dans
+// quatre boîtes de ~160 px. C'est la RÉPÉTITION, pas le nombre de records,
+// qui rendait l'écran interminable.
+//
+// L'ordre d'apparition des exercices suit celui du tableau `prs`, qui suit
+// lui-même l'ordre des séries de la séance : on relit la séance dans l'ordre
+// où on l'a vécue, pas dans un classement arbitraire.
+export interface PRGroup<T> {
+  exerciseId: string;
+  prs: T[];
+}
+
+export function groupPRsByExercise<T extends { exerciseId: string }>(prs: T[]): PRGroup<T>[] {
+  const groups: PRGroup<T>[] = [];
+  const indexByExerciseId = new Map<string, number>();
+
+  for (const pr of prs) {
+    const existing = indexByExerciseId.get(pr.exerciseId);
+    if (existing === undefined) {
+      indexByExerciseId.set(pr.exerciseId, groups.length);
+      groups.push({ exerciseId: pr.exerciseId, prs: [pr] });
+      continue;
+    }
+    groups[existing]!.prs.push(pr);
+  }
+
+  return groups;
+}

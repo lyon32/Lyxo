@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { PRCard } from '../../components/logger/PRCelebrationModal';
+import { PRSummaryBlock } from '../../components/workout/PRSummaryBlock';
 import { useWorkoutSummary } from '../../db/use-workout-summary';
 import { useExercisesStore } from '../../lib/exercises-store';
 import { formatWeight, type Locale, type WeightUnit } from '../../lib/units';
@@ -18,6 +18,17 @@ import { dayLabel, formatDurationLabel, volumeDeltaKg } from '../../lib/workout-
 // décrivait comme un choix délibéré — LLD a été corrigé en conséquence pour
 // ne plus se contredire avec ce fichier.
 //
+// ⚠️ RÉVISION 2026-08-03 — les records ne sont plus des cartes empilées.
+// Chaque `PRCard` était une boîte de ~160 px pour un badge et un chiffre
+// (son delta ne s'affiche que si `previousBest` existe, or le hook le code
+// en dur à `null`), et le nom de l'exercice y disparaissait pour tout type
+// autre que `weight`. Une séance à 4 types sur 3 exercices produisait 12
+// cartes. Remplacé par `PRSummaryBlock`, groupé par exercice : le nom une
+// seule fois en en-tête, une ligne `type → valeur` par record.
+// La stat row est passée à la grille 2 colonnes du format app-wide §6.0, et
+// le contenu est ancré en haut. LLD.md §6.5bis et ROADMAP 2.11 mis à jour
+// dans le même commit.
+//
 // ⚠️ Hors périmètre, documenté plutôt que deviné :
 // - L'animation "week-strip check pops in" (Home) n'est pas déclenchée
 //   depuis cet écran : `StreakCalendar` sur Home n'est pas encore branché
@@ -27,6 +38,19 @@ import { dayLabel, formatDurationLabel, volumeDeltaKg } from '../../lib/workout-
 //   pas à "la même séance" : ROADMAP 2.7 (Templates/Splits) a été
 //   abandonnée, il n'existe plus de notion de séance nommée à comparer.
 const DISPLAY_UNIT: WeightUnit = 'kg';
+
+// Tuile de stat au format app-wide (LLD.md §6.0) : label en capitales grises
+// AU-DESSUS, valeur en gros gras en dessous. Les capitales sont toujours
+// interlettrées — non décoratif : sans espacement, un label en capitales à
+// cette taille devient un pavé gris illisible.
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="min-w-[47%] flex-1 rounded-card border border-border bg-card px-4 py-3.5">
+      <Text className="text-[11px] uppercase tracking-widest text-muted">{label}</Text>
+      <Text className="mt-1 font-inter-bold text-2xl text-fg">{value}</Text>
+    </View>
+  );
+}
 
 export default function WorkoutSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,6 +69,11 @@ export default function WorkoutSummaryScreen() {
   const exercisesById = useMemo(
     () => new Map(exercises.map((exercise) => [exercise.id, exercise])),
     [exercises],
+  );
+  const nameField = i18n.language === 'en' ? 'name_en' : 'name_fr';
+  const exerciseNameById = useCallback(
+    (exerciseId: string) => exercisesById.get(exerciseId)?.[nameField] ?? '',
+    [exercisesById, nameField],
   );
 
   const handleFinish = () => router.replace('/(tabs)');
@@ -91,11 +120,15 @@ export default function WorkoutSummaryScreen() {
   return (
     <ScrollView
       className="flex-1 bg-bg"
-      contentContainerClassName="grow items-center justify-center gap-4 px-6 py-16"
+      /* Ancré en haut, aligné à gauche : le `items-center justify-center`
+         précédent faisait sauter le contenu du centre vers le haut dès qu'il
+         dépassait la hauteur d'écran, et LLD.md §6.0 bannit le centrage
+         vertical pour cette raison. */
+      contentContainerClassName="grow justify-start gap-4 px-6 pb-8 pt-16"
     >
       <Text className="text-lg text-muted">{dayLabel(summary.completedAt, locale)}</Text>
 
-      <View className="items-center">
+      <View>
         <Text className="font-inter-black text-6xl text-fg">
           {formatWeight(summary.totalVolumeKg, DISPLAY_UNIT, locale)}
         </Text>
@@ -107,41 +140,31 @@ export default function WorkoutSummaryScreen() {
         ) : null}
       </View>
 
-      <View className="mt-6 w-full flex-row justify-around rounded-card border border-border bg-card p-4">
-        <View className="items-center">
-          <Text className="font-inter-semibold text-fg">
-            {formatDurationLabel(summary.durationMs)}
-          </Text>
-          <Text className="text-xs text-muted">{t('workout.summary.stat_duration')}</Text>
-        </View>
-        <View className="items-center">
-          <Text className="font-inter-semibold text-fg">{summary.setsCount}</Text>
-          <Text className="text-xs text-muted">{t('workout.summary.stat_sets')}</Text>
-        </View>
-        <View className="items-center">
-          <Text className="font-inter-semibold text-fg">{summary.exercisesCount}</Text>
-          <Text className="text-xs text-muted">{t('workout.summary.stat_exercises')}</Text>
-        </View>
+      {/* Grille 2 colonnes, label en capitales AU-DESSUS de la valeur : c'est
+          le format de stat card imposé à toute l'app par LLD.md §6.0. La
+          rangée de 3 items valeur-au-dessus-du-label qui existait ici ne le
+          respectait pas — écart doc/code corrigé au passage. */}
+      <View className="mt-6 w-full flex-row flex-wrap gap-2.5">
+        <StatTile
+          label={t('workout.summary.stat_duration')}
+          value={formatDurationLabel(summary.durationMs)}
+        />
+        <StatTile label={t('workout.summary.stat_sets')} value={`${summary.setsCount}`} />
+        <StatTile
+          label={t('workout.summary.stat_exercises')}
+          value={`${summary.exercisesCount}`}
+        />
+        <StatTile label={t('workout.summary.stat_prs')} value={`${summary.prs.length}`} />
       </View>
 
-      {summary.prs.length > 0 ? (
-        <View className="mt-6 w-full gap-4">
-          {summary.prs.map((pr, index) => (
-            <PRCard
-              // Une même séance peut battre le même type sur deux exercices
-              // différents : la clé combine les deux plutôt que le seul type.
-              key={`${pr.exerciseId}-${pr.type}-${index}`}
-              exerciseName={
-                exercisesById.get(pr.exerciseId)?.[i18n.language === 'en' ? 'name_en' : 'name_fr'] ??
-                ''
-              }
-              pr={pr}
-              unit={DISPLAY_UNIT}
-              locale={locale}
-            />
-          ))}
-        </View>
-      ) : null}
+      <View className="mt-6 w-full">
+        <PRSummaryBlock
+          prs={summary.prs}
+          exerciseNameById={exerciseNameById}
+          unit={DISPLAY_UNIT}
+          locale={locale}
+        />
+      </View>
 
       <View className="mt-8 w-full gap-3">
         <Pressable

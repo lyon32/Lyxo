@@ -49,9 +49,17 @@ function deltaLabel(pr: CelebratedPR, unit: WeightUnit, locale: Locale): string 
 }
 
 // Une carte par type de PR battu — un même set peut en battre plusieurs
-// (ex: poids max ET 1RM estimé) : LYXO_UI_PROMPT §8 prévoit déjà des cartes
-// PR empilées pour ce cas (résumé de séance, même style que l'écran 7).
-// Exporté : réutilisé tel quel par le résumé de fin de séance (2.11).
+// (ex: poids max ET 1RM estimé).
+//
+// ⚠️ N'EST PLUS UTILISÉE PAR LE RÉSUMÉ DE FIN DE SÉANCE depuis le
+// 2026-08-03 (`components/workout/PRSummaryBlock.tsx`). Cette carte est
+// désormais réservée à la MODALE de célébration, qui est le moment "peak" :
+// déclenchée depuis UN exercice, dont le contexte est donc implicite. C'est
+// ce qui rend acceptable le `showExerciseAsTitle` ci-dessous, qui n'affiche
+// le nom de l'exercice que pour un record de poids : sur le résumé, qui
+// agrège plusieurs exercices, cette omission était une perte d'information.
+// Ne pas réutiliser ce composant sur un écran qui agrège plusieurs exercices
+// sans lever cette restriction.
 export function PRCard({
   exerciseName,
   pr,
